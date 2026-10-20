@@ -540,7 +540,7 @@ function msfFmt(u, v) {
   if (v === null || v === undefined || (typeof v === 'number' && !isFinite(v))) return '—';
   if (typeof v === 'string') return v;
   if (u === '$') return (v < 0 ? '−$' : '$') + Math.round(Math.abs(v)).toLocaleString('en-US');
-  if (u === '%') return (v * 100).toFixed(1) + '%';
+  if (u === '%') { var pv = Math.round(v * 10000) / 100; return (pv % 1 && Math.round(pv * 10) !== pv * 10 ? pv.toFixed(2) : pv.toFixed(1)) + '%'; }
   if (u === 'x') return v.toFixed(2) + 'x';
   if (u === 'mo') return Math.round(v) + ' months';
   return Math.round(v).toLocaleString('en-US');
