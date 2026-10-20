@@ -100,6 +100,11 @@ legend{padding:0}
 .calc div{display:flex;justify-content:space-between;gap:10px;padding:2px 0}.calc b{color:var(--gold2);font-weight:600;white-space:nowrap}
 .calc small{display:block;color:var(--mut);font-size:12.5px;margin-top:4px}
 .tbl{margin:26px 0 0}
+.deal{margin:22px 0 0;padding:16px;border-radius:16px;border:1px solid var(--gold);background:linear-gradient(180deg,#132a58,#0c1c3d);font-size:15px}
+.deal h4{font:600 19px/1.2 var(--serif);color:var(--gold2);margin:14px 0 6px}.deal h4:first-child{margin-top:0}
+.deal div{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid rgba(201,162,74,.15)}
+.deal b{color:var(--text);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}.deal b.okv{color:var(--ok)}.deal b.badv{color:var(--err)}
+.deal small{display:block;color:var(--mut);font-size:12.5px;margin-top:10px}
 .row{margin:12px 0 0;padding:14px;border:1px solid var(--line);border-radius:14px;background:rgba(13,29,59,.6)}
 .row .rh{display:flex;justify-content:space-between;align-items:center;font-weight:600;color:var(--gold2)}
 .row .f{margin-top:12px}
@@ -169,17 +174,17 @@ footer.home{padding-bottom:40px}
 <div id="offline" class="offline" hidden role="status">You're offline. Your answers are kept on this phone and will save when you reconnect.</div>
 <div id="app"></div>
 <script>
-// ===== My Source Finance — shared application schema (v2). Identical copy runs in the browser and in Apps Script. =====
-// Field: {id, l: label, t: type, r: required, o: options, s: show-condition, h: help, ac: autocomplete, ph: placeholder}
+// ===== My Source Finance — shared application schema (v3, 2026-10-20). Identical copy runs in the browser and in Apps Script. =====
+// Field: {id, l: label, t: type, r: required, o: options, s: show-condition, h: help, ac: autocomplete, ph: placeholder, d: default}
 // Types: text email tel money int pct date month choice select textarea check yesno table
-// Show condition: {f: fieldId, eq: value} | {f, in: [values]} | {f, ne: value} | {all: [cond, cond]}
-var MSF_SCHEMA_VERSION = 2;
+// Show condition: {f: fieldId, eq: value} | {f, ne: value} | {f, in: [values]} | {f, nz: 1} | {all: [cond, ...]}
+var MSF_SCHEMA_VERSION = 3;
 var MSF_YN = ['Yes', 'No'];
 var MSF_CREDIT = ['760+', '720–759', '680–719', '640–679', 'Below 640', 'Not sure'];
-var MSF_TIMELINE = ['Within 30 days', '1–3 months', '3–6 months', 'Just exploring'];
+var MSF_TIMELINE = ['Within 30 days', '30–60 days', '60–90 days', '90+ days', 'Just exploring'];
 var MSF_EXIT = ['Sell the property', 'Refinance into a long-term loan', 'Hold and rent', 'Other'];
-var MSF_TERM = ['6 months', '12 months', '18 months', '24 months', '36 months', 'Other / not sure'];
 var MSF_ENTITY = ['An LLC / corporation', 'Myself as an individual', 'Not sure yet'];
+var MSF_APP_ALIAS = { multifamily: 'commercial' }; // links sent before Oct 20 keep working
 
 var MSF_F = {
   // ---------- borrower ----------
@@ -192,12 +197,17 @@ var MSF_F = {
     { id: 'homeAddress', l: 'Current home address', t: 'text', ac: 'street-address', ph: 'Street, city, state, ZIP' }
   ],
   resBorrower: [
+    { id: 'addressYears', l: 'Time at this address', t: 'select', o: ['Under 2 years', '2–5 years', '5+ years'] },
     { id: 'maritalStatus', l: 'Marital status', t: 'select', o: ['Married', 'Unmarried', 'Separated'] },
+    { id: 'dependents', l: 'Number of dependents', t: 'int' },
+    { id: 'citizenship', l: 'Citizenship', t: 'select', o: ['U.S. citizen', 'Permanent resident', 'Non-permanent resident', 'Foreign national'] },
+    { id: 'firstTime', l: 'First-time home buyer?', t: 'select', o: MSF_YN },
     { id: 'coBorrower', l: 'Will anyone apply with you (co-borrower)?', t: 'yesno', r: 1 },
     { id: 'coName', l: 'Co-borrower full name', t: 'text', r: 1, s: { f: 'coBorrower', eq: 'Yes' } },
     { id: 'coRelation', l: 'Relationship to you', t: 'select', o: ['Spouse', 'Partner', 'Family member', 'Other'], s: { f: 'coBorrower', eq: 'Yes' } },
     { id: 'coEmail', l: 'Co-borrower email', t: 'email', s: { f: 'coBorrower', eq: 'Yes' } },
-    { id: 'coPhone', l: 'Co-borrower phone', t: 'tel', s: { f: 'coBorrower', eq: 'Yes' } }
+    { id: 'coPhone', l: 'Co-borrower phone', t: 'tel', s: { f: 'coBorrower', eq: 'Yes' } },
+    { id: 'coIncome', l: 'Co-borrower annual income', t: 'money', s: { f: 'coBorrower', eq: 'Yes' } }
   ],
   entity: [
     { id: 'borrowerType', l: 'Who will borrow?', t: 'choice', r: 1, o: MSF_ENTITY },
@@ -206,10 +216,18 @@ var MSF_F = {
     { id: 'entityFormed', l: 'Date formed', t: 'month', s: { f: 'borrowerType', eq: 'An LLC / corporation' } },
     { id: 'owners', l: 'Owners and ownership %', t: 'table', s: { f: 'borrowerType', eq: 'An LLC / corporation' }, later: 1, max: 8,
       cols: [{ id: 'name', l: 'Owner name', t: 'text' }, { id: 'pct', l: 'Ownership %', t: 'pct' }, { id: 'title', l: 'Title / role', t: 'text' }, { id: 'signer', l: 'Authorized signer?', t: 'select', o: MSF_YN }, { id: 'guar', l: 'Will guarantee the loan?', t: 'select', o: MSF_YN }] },
-    { id: 'guarantors', l: 'Proposed guarantor(s)', t: 'text', ph: 'Names of everyone who will personally guarantee' },
-    { id: 'spouseGuar', l: 'Will a spouse also sign or guarantee?', t: 'select', o: ['Yes', 'No', 'Not sure'] }
+    { id: 'guarantors', l: 'Proposed guarantor(s)', t: 'text', ph: 'Names of everyone who will personally guarantee' }
   ],
-  // ---------- residential loan ----------
+  commRole: [
+    { id: 'role', l: 'You are the', t: 'select', r: 1, o: ['Borrower', 'Broker', 'Investor', 'Developer', 'Advisor', 'Other'] }
+  ],
+  declarations: [
+    { id: 'decBankruptcy', l: 'Bankruptcy in the last 7 years?', t: 'select', o: MSF_YN },
+    { id: 'decForeclosure', l: 'Foreclosure, short sale or deed-in-lieu in the last 7 years?', t: 'select', o: MSF_YN },
+    { id: 'decJudgments', l: 'Outstanding judgments, liens or lawsuits?', t: 'select', o: MSF_YN },
+    { id: 'decExplain', l: 'If yes, briefly explain', t: 'textarea', s: { any: ['decBankruptcy', 'decForeclosure', 'decJudgments'], eq: 'Yes' } }
+  ],
+  // ---------- residential ----------
   resLoan: [
     { id: 'purpose', l: 'Loan purpose', t: 'choice', r: 1, o: ['Purchase', 'Refinance', 'Cash-out refinance', 'Home equity / second mortgage'] },
     { id: 'propAddress', l: 'Property address', t: 'text', r: 1, ac: 'off', ph: 'Or city and state if you are still shopping' },
@@ -218,6 +236,7 @@ var MSF_F = {
     { id: 'value', l: 'Purchase price or estimated value', t: 'money', r: 1 },
     { id: 'loanAmt', l: 'Loan amount requested', t: 'money', r: 1 },
     { id: 'downPayment', l: 'Down payment', t: 'money', s: { f: 'purpose', eq: 'Purchase' } },
+    { id: 'downSource', l: 'Source of down payment', t: 'select', o: ['Savings', 'Sale of current home', 'Gift', 'Retirement funds', 'Other'], s: { f: 'purpose', eq: 'Purchase' } },
     { id: 'mortBalance', l: 'Current mortgage balance', t: 'money', s: { f: 'purpose', ne: 'Purchase' } },
     { id: 'closeDate', l: 'Desired closing date', t: 'date' },
     { id: 'timeline', l: 'When do you need financing?', t: 'select', r: 1, o: MSF_TIMELINE }
@@ -226,17 +245,65 @@ var MSF_F = {
     { id: 'employment', l: 'Employment', t: 'choice', r: 1, o: ['W-2 employee', 'Self-employed / business owner', 'Retired', 'Other'] },
     { id: 'employer', l: 'Employer or business name', t: 'text', s: { f: 'employment', in: ['W-2 employee', 'Self-employed / business owner'] }, ac: 'organization' },
     { id: 'occupation', l: 'Position / occupation', t: 'text', s: { f: 'employment', in: ['W-2 employee', 'Self-employed / business owner'] }, ac: 'organization-title' },
-    { id: 'jobYears', l: 'Time in this line of work', t: 'select', o: ['Under 1 year', '1–2 years', '2–5 years', '5+ years'], s: { f: 'employment', in: ['W-2 employee', 'Self-employed / business owner'] } },
-    { id: 'income', l: 'Annual household income (before tax)', t: 'money', r: 1 },
-    { id: 'incomeSources', l: 'Other income sources', t: 'text', ph: 'e.g. rental income, pension, bonus' },
+    { id: 'jobYears', l: 'Time in this line of work', t: 'select', o: ['Under 2 years', '2–5 years', '5+ years'], s: { f: 'employment', in: ['W-2 employee', 'Self-employed / business owner'] } },
+    { id: 'income', l: 'Annual income (before tax)', t: 'money', r: 1 },
+    { id: 'incomeSources', l: 'Other income (bonus, rental, pension…)', t: 'text' },
     { id: 'cashAssets', l: 'Cash in bank accounts', t: 'money' },
     { id: 'investAssets', l: 'Retirement and investment accounts', t: 'money' },
     { id: 'monthlyDebts', l: 'Monthly debt payments (cars, cards, loans)', t: 'money', h: 'Total of the minimum monthly payments' },
     { id: 'creditRange', l: 'Estimated credit score', t: 'select', r: 1, o: MSF_CREDIT },
     { id: 'ownsOther', l: 'Do you own other real estate?', t: 'yesno', r: 1 }
   ],
-  // ---------- investor financial (construction / private / multifamily) ----------
-  invFin: [
+  // ---------- commercial $1M–$70M (Yoni's checklist + the Multifamily Loan Intake) ----------
+  comLoan: [
+    { id: 'purpose', l: 'Loan purpose', t: 'select', r: 1, o: ['Purchase', 'Refinance', 'Cash-out refinance', 'Bridge loan', 'Construction', 'Acquisition / development', 'Working capital', 'Other'] },
+    { id: 'propAddress', l: 'Property address', t: 'text', r: 1, ac: 'off' },
+    { id: 'assetClass', l: 'Property type', t: 'select', r: 1, o: ['Multifamily', 'Mixed-use', 'Retail', 'Office', 'Industrial', 'Hospitality / hotel', 'Nursing home / assisted living / memory care', 'Land / development', 'Special purpose', 'Other'] },
+    { id: 'resUnits', l: 'Residential units', t: 'int' },
+    { id: 'comUnits', l: 'Commercial units', t: 'int' },
+    { id: 'occupiedUnits', l: 'Units occupied today', t: 'int' },
+    { id: 'incomeProducing', l: 'Is the property income-producing?', t: 'select', r: 1, o: ['Yes', 'No', 'Not applicable'] },
+    { id: 'purchaseDate', l: 'When did you buy the property?', t: 'month', s: { f: 'purpose', ne: 'Purchase' } },
+    { id: 'value', l: 'Purchase price', t: 'money', r: 1, h: 'For a refinance, the original purchase price' },
+    { id: 'presentValue', l: 'Estimated current (as-is) value', t: 'money' },
+    { id: 'arv', l: 'Estimated value after renovation (if any)', t: 'money' },
+    { id: 'loanAmt', l: 'Requested financing amount', t: 'money', r: 1 },
+    { id: 'cashAvail', l: 'Down payment / cash available', t: 'money', h: 'For down payment, renovation and closing costs' },
+    { id: 'timeline', l: 'Desired closing timeline', t: 'select', r: 1, o: MSF_TIMELINE }
+  ],
+  comBasis: [
+    { id: 'basisPrice', l: 'Purchase price paid', t: 'money', g: 'basis' },
+    { id: 'basisHard', l: 'Hard costs', t: 'money', g: 'basis' },
+    { id: 'basisSoft', l: 'Soft costs', t: 'money', g: 'basis' },
+    { id: 'basisClosing', l: 'Closing costs', t: 'money', g: 'basis' },
+    { id: 'basisOther', l: 'Other costs', t: 'money', g: 'basis' }
+  ],
+  comDebt: [
+    { id: 'curLender', l: 'Current lender', t: 'text', s: { f: 'purpose', ne: 'Purchase' } },
+    { id: 'existingDebt', l: 'Outstanding loan balance', t: 'money', s: { f: 'purpose', ne: 'Purchase' } },
+    { id: 'curRate', l: 'Current interest rate', t: 'pct', s: { f: 'purpose', ne: 'Purchase' } },
+    { id: 'curPayment', l: 'Current monthly payment', t: 'money', s: { f: 'purpose', ne: 'Purchase' } },
+    { id: 'maturity', l: 'When does the loan come due?', t: 'month', s: { f: 'purpose', ne: 'Purchase' } },
+    { id: 'loanCurrent', l: 'Is the loan current?', t: 'select', o: MSF_YN, s: { f: 'purpose', ne: 'Purchase' } }
+  ],
+  comOps: [
+    { id: 'rentRes', l: 'Current monthly residential rent (all occupied units)', t: 'money', g: 'ops' },
+    { id: 'rentCom', l: 'Current monthly commercial rent', t: 'money', g: 'ops' },
+    { id: 'rentResPro', l: 'Projected monthly residential rent, fully leased', t: 'money', g: 'ops' },
+    { id: 'rentComPro', l: 'Projected monthly commercial rent, fully leased', t: 'money', g: 'ops' },
+    { id: 'otherIncome', l: 'Other monthly income (parking, laundry, storage)', t: 'money', g: 'ops' },
+    { id: 'taxes', l: 'Real estate taxes (per year)', t: 'money', g: 'ops' },
+    { id: 'insurance', l: 'Insurance (per year)', t: 'money', g: 'ops' },
+    { id: 'utilities', l: 'Utilities paid by owner (per year)', t: 'money', g: 'ops' },
+    { id: 'repairs', l: 'Repairs and maintenance (per year)', t: 'money', g: 'ops' },
+    { id: 'otherOpex', l: 'Payroll, management, other expenses (per year)', t: 'money', g: 'ops' },
+    { id: 'hasRentRoll', l: 'Do you have a current rent roll?', t: 'select', o: MSF_YN },
+    { id: 'hasProforma', l: 'Do you have a pro forma with income and expenses?', t: 'select', o: MSF_YN },
+    { id: 'renoUnits', l: 'Apartments to renovate', t: 'int', g: 'reno' },
+    { id: 'renoPerUnit', l: 'Renovation cost per apartment', t: 'money', g: 'reno' },
+    { id: 'renoOther', l: 'Other renovation (roof, common areas, systems)', t: 'money', g: 'reno' }
+  ],
+  sponsor: [
     { id: 'creditRange', l: 'Estimated credit score (main guarantor)', t: 'select', r: 1, o: MSF_CREDIT },
     { id: 'liquidity', l: 'Cash and liquid funds available', t: 'money', r: 1, h: 'Bank, brokerage and money-market balances you can document' },
     { id: 'pfsCash', l: 'Cash', t: 'money', g: 'pfs' },
@@ -249,119 +316,129 @@ var MSF_F = {
     { id: 'ownsOther', l: 'Do you (or your entities) own other real estate?', t: 'yesno', r: 1 }
   ],
   reo: [
-    { id: 'reo', l: 'Real estate you own now', t: 'table', s: { f: 'ownsOther', eq: 'Yes' }, later: 1, max: 15,
+    { id: 'reo', l: 'Real estate you own now (REO)', t: 'table', s: { f: 'ownsOther', eq: 'Yes' }, later: 1, max: 15,
       cols: [{ id: 'addr', l: 'Address', t: 'text' }, { id: 'pct', l: 'Your ownership %', t: 'pct' }, { id: 'val', l: 'Estimated value', t: 'money' }, { id: 'debt', l: 'Mortgage balance', t: 'money' }, { id: 'inc', l: 'Monthly rent income', t: 'money' }, { id: 'pmt', l: 'Monthly mortgage payment', t: 'money' }] }
   ],
   track: [
     { id: 'experience', l: 'Similar projects completed in the last 5 years', t: 'choice', r: 1, o: ['None', '1–2', '3–5', '6+'] },
+    { id: 'bio', l: 'Short bio / experience summary', t: 'textarea', ph: 'Your background, roles and notable projects' },
     { id: 'trackRecord', l: 'Track record — completed projects', t: 'table', s: { f: 'experience', ne: 'None' }, later: 1, max: 15,
-      h: 'Lenders ask for this first. Add your most recent projects, or tap “Add details later”.',
-      cols: [{ id: 'addr', l: 'Property address', t: 'text' }, { id: 'type', l: 'Project type', t: 'select', o: ['Ground-up construction', 'Major renovation', 'Fix and flip', 'Rental / buy and hold', 'Other'] }, { id: 'role', l: 'Your role', t: 'select', o: ['Owner / sponsor', 'General contractor', 'Owner and GC', 'Partner', 'Other'] }, { id: 'entity', l: 'Entity name', t: 'text' }, { id: 'acq', l: 'Acquired', t: 'month' }, { id: 'done', l: 'Completed', t: 'month' }, { id: 'sold', l: 'Sold (if sold)', t: 'month' }, { id: 'cost', l: 'Total project cost', t: 'money' }, { id: 'price', l: 'Sale price / value', t: 'money' }] }
+      h: 'Add your most recent projects, or tap “Add these details later”.',
+      cols: [{ id: 'addr', l: 'Property address', t: 'text' }, { id: 'type', l: 'Project type', t: 'select', o: ['Ground-up construction', 'Major renovation', 'Fix and flip', 'Rental / buy and hold', 'Commercial', 'Other'] }, { id: 'role', l: 'Your role', t: 'select', o: ['Owner / sponsor', 'General contractor', 'Owner and GC', 'Partner', 'Other'] }, { id: 'acq', l: 'Acquired', t: 'month' }, { id: 'done', l: 'Completed', t: 'month' }, { id: 'sold', l: 'Sold (if sold)', t: 'month' }, { id: 'cost', l: 'Total project cost', t: 'money' }, { id: 'price', l: 'Sale price / value', t: 'money' }] }
   ],
-  // ---------- construction ----------
+  // ---------- construction (generic ground-up / development) ----------
   conProp: [
     { id: 'propAddress', l: 'Project address', t: 'text', r: 1, ac: 'off' },
     { id: 'landOwned', l: 'Do you own the land now?', t: 'choice', r: 1, o: ['Yes — owned free and clear', 'Yes — with a mortgage', 'No — purchasing it'] },
     { id: 'titleHolder', l: 'Who holds title now?', t: 'text', ph: 'Person or LLC on the deed' },
     { id: 'purchaseDate', l: 'Date the land was purchased', t: 'month', s: { f: 'landOwned', ne: 'No — purchasing it' } },
     { id: 'landValue', l: 'Land purchase price (or contract price)', t: 'money', r: 1 },
-    { id: 'landBasis', l: 'Documented cost basis to date', t: 'money', h: 'Land price plus documented improvements, approvals and site work — lenders base cash-out on this' },
+    { id: 'landBasis', l: 'Documented cost basis to date', t: 'money', h: 'Land price plus documented improvements, approvals and site work' },
     { id: 'presentValue', l: 'Estimated value today (as-is)', t: 'money' },
     { id: 'existingLiens', l: 'Existing mortgage / liens on the land', t: 'money', s: { f: 'landOwned', eq: 'Yes — with a mortgage' } },
-    { id: 'plat', l: 'Subdivision / plat approval', t: 'select', o: ['Approved', 'Pending', 'Not required', 'Not started'] },
+    { id: 'plat', l: 'Subdivision / site-plan approval', t: 'select', o: ['Approved', 'Pending', 'Not required', 'Not started'] },
     { id: 'plans', l: 'Architectural plans', t: 'select', r: 1, o: ['Complete', 'In progress', 'Not started'] },
     { id: 'permits', l: 'Building permits', t: 'select', r: 1, o: ['Permits issued', 'Plans done, permits pending', 'Plans in progress', 'Not started'] },
-    { id: 'sewer', l: 'Sewer', t: 'select', r: 1, o: ['Public sewer — available/connected', 'Septic', 'Sewer pending', 'Not sure'] },
-    { id: 'utilities', l: 'Other utilities at the site', t: 'check', o: ['Public water', 'Well water', 'Gas', 'Electric'] },
+    { id: 'utilities', l: 'Utilities available at the site', t: 'check', o: ['Public sewer', 'Septic', 'Public water', 'Well water', 'Gas', 'Electric'] },
     { id: 'loanAmt', l: 'Total loan amount requested', t: 'money', r: 1 },
     { id: 'holdback', l: 'Construction holdback requested', t: 'money', h: 'Portion of the loan released in draws as you build' },
     { id: 'cashOut', l: 'Cash-out at closing, if any', t: 'money' },
-    { id: 'term', l: 'Loan term', t: 'select', r: 1, o: MSF_TERM },
+    { id: 'term', l: 'Loan term', t: 'select', r: 1, o: ['12 months', '18 months', '24 months', '36 months', 'Other / not sure'] },
     { id: 'exit', l: 'Exit strategy', t: 'choice', r: 1, o: MSF_EXIT },
     { id: 'exitDate', l: 'Expected sale / refinance date', t: 'month' },
     { id: 'timeline', l: 'When do you need to close?', t: 'select', r: 1, o: MSF_TIMELINE }
   ],
   conProject: [
-    { id: 'projType', l: 'Project type', t: 'choice', r: 1, o: ['New single-family home', 'New multifamily', 'Major renovation / addition', 'Other'] },
-    { id: 'sqft', l: 'Proposed living area (sq ft)', t: 'int' },
+    { id: 'projType', l: 'Project type', t: 'choice', r: 1, o: ['New single-family home', 'New 2–4 family', 'New multifamily / mixed-use', 'Major renovation / addition', 'Other'] },
+    { id: 'sqft', l: 'Proposed building area (sq ft)', t: 'int' },
     { id: 'units', l: 'Number of units', t: 'int' },
     { id: 'buildMonths', l: 'Construction duration (months)', t: 'int' },
     { id: 'startDate', l: 'Proposed start date', t: 'month' },
     { id: 'hardCosts', l: 'Hard construction costs', t: 'money', r: 1, g: 'bud' },
     { id: 'siteCosts', l: 'Site work and utility costs', t: 'money', g: 'bud' },
     { id: 'softCosts', l: 'Soft costs (plans, permits, fees)', t: 'money', g: 'bud' },
-    { id: 'contingency', l: 'Contingency', t: 'money', g: 'bud', h: 'Most lenders expect at least 10% of hard costs' },
+    { id: 'contingency', l: 'Contingency', t: 'money', g: 'bud' },
     { id: 'interestReserve', l: 'Interest reserve', t: 'money', g: 'bud' },
     { id: 'budget', l: 'Total development budget', t: 'money', r: 1, h: 'Filled in from the lines above — change it if needed' },
     { id: 'invested', l: 'Amount you have already invested', t: 'money' },
-    { id: 'reimburse', l: 'Amount requested back as reimbursement', t: 'money' },
-    { id: 'arv', l: 'Estimated value when completed (ARV)', t: 'money', r: 1 },
-    { id: 'comps', l: 'Comparable sales supporting the ARV', t: 'table', later: 1, max: 8,
+    { id: 'arv', l: 'Estimated value when completed', t: 'money', r: 1 },
+    { id: 'comps', l: 'Comparable sales supporting the value', t: 'table', later: 1, max: 8,
       cols: [{ id: 'addr', l: 'Address', t: 'text' }, { id: 'price', l: 'Sale price', t: 'money' }, { id: 'date', l: 'Sale date', t: 'month' }, { id: 'sqft', l: 'Sq ft', t: 'int' }] },
     { id: 'gc', l: 'General contractor — legal name', t: 'text', r: 1, ph: 'Write “Self” if you are the GC' },
     { id: 'gcLicense', l: 'GC license number and state', t: 'text' },
     { id: 'gcInsurance', l: 'GC liability insurance', t: 'select', o: ['In place', 'In progress', 'No', 'Not sure'] },
-    { id: 'sponsorRole', l: 'Your role on the project', t: 'select', r: 1, o: ['Owner / developer only', 'Owner and general contractor', 'Owner with a third-party GC and project manager'] },
-    { id: 'pmPlan', l: 'Who manages the job site day to day?', t: 'text' }
+    { id: 'sponsorRole', l: 'Your role on the project', t: 'select', r: 1, o: ['Owner / developer only', 'Owner and general contractor', 'Owner with a third-party GC and project manager'] }
   ],
-  // ---------- private / bridge ----------
+  // ---------- private / fix & flip (LendSure-style investor programs) ----------
   pvtProp: [
-    { id: 'purpose', l: 'Loan type', t: 'choice', r: 1, o: ['Purchase', 'Fix and flip', 'Bridge', 'Refinance', 'Cash-out refinance'] },
+    { id: 'purpose', l: 'Loan type', t: 'choice', r: 1, o: ['Fix and flip', 'Bridge', 'Purchase (rental)', 'Rate / term refinance', 'Cash-out refinance', 'Long-term rental (DSCR)'] },
     { id: 'propAddress', l: 'Property address', t: 'text', r: 1, ac: 'off' },
-    { id: 'propType', l: 'Property type', t: 'choice', r: 1, o: ['Single-family', '2–4 family', 'Multifamily (5+)', 'Mixed-use / commercial', 'Land', 'Other'] },
-    { id: 'ownerOcc', l: 'Will you or your family live in it?', t: 'yesno', r: 1, h: 'Private / bridge loans are for investment properties only' },
-    { id: 'titleHolder', l: 'Who holds title now?', t: 'text', s: { f: 'purpose', in: ['Bridge', 'Refinance', 'Cash-out refinance'] } },
-    { id: 'purchaseDate', l: 'Date acquired', t: 'month', s: { f: 'purpose', in: ['Bridge', 'Refinance', 'Cash-out refinance'] } },
-    { id: 'basis', l: 'Documented cost basis (price + improvements)', t: 'money', s: { f: 'purpose', in: ['Bridge', 'Refinance', 'Cash-out refinance'] } },
+    { id: 'propType', l: 'Property type', t: 'choice', r: 1, o: ['Single-family', '2–4 family', 'Condo', '5–10 units', 'Mixed-use', 'Other'] },
+    { id: 'ownerOcc', l: 'Will you or your family live in it?', t: 'yesno', r: 1, h: 'These programs are for investment properties only' },
+    { id: 'purchaseDate', l: 'Date acquired', t: 'month', s: { f: 'purpose', in: ['Bridge', 'Rate / term refinance', 'Cash-out refinance', 'Long-term rental (DSCR)'] } },
+    { id: 'basis', l: 'Documented cost basis (price + improvements)', t: 'money', s: { f: 'purpose', in: ['Bridge', 'Rate / term refinance', 'Cash-out refinance'] } },
     { id: 'value', l: 'Purchase price or current value', t: 'money', r: 1 },
-    { id: 'existingLiens', l: 'Existing liens / payoff', t: 'money', s: { f: 'purpose', in: ['Bridge', 'Refinance', 'Cash-out refinance'] } },
+    { id: 'existingLiens', l: 'Existing loan payoff', t: 'money', s: { f: 'purpose', in: ['Bridge', 'Rate / term refinance', 'Cash-out refinance', 'Long-term rental (DSCR)'] } },
     { id: 'loanAmt', l: 'Loan amount requested', t: 'money', r: 1 },
     { id: 'cashOut', l: 'Cash-out requested', t: 'money', s: { f: 'purpose', in: ['Bridge', 'Cash-out refinance'] } },
-    { id: 'fundsUse', l: 'What will the funds be used for?', t: 'text', r: 1 },
-    { id: 'rehab', l: 'Renovation budget, if any', t: 'money' },
-    { id: 'arv', l: 'After-repair value (ARV)', t: 'money', s: { f: 'rehab', nz: 1 } },
-    { id: 'term', l: 'Term needed', t: 'select', r: 1, o: MSF_TERM },
-    { id: 'interestReserve', l: 'Interest reserve wanted?', t: 'select', o: ['Yes', 'No', 'Not sure'] },
+    { id: 'rehab', l: 'Renovation budget', t: 'money', s: { f: 'purpose', in: ['Fix and flip', 'Bridge', 'Purchase (rental)'] } },
+    { id: 'arv', l: 'After-repair value (ARV)', t: 'money', s: { f: 'purpose', in: ['Fix and flip', 'Bridge', 'Purchase (rental)'] } },
+    { id: 'rentNow', l: 'Current or market monthly rent', t: 'money', s: { f: 'purpose', in: ['Purchase (rental)', 'Rate / term refinance', 'Cash-out refinance', 'Long-term rental (DSCR)'] } },
+    { id: 'leased', l: 'Lease in place?', t: 'select', o: ['Fully leased', 'Partly leased', 'Vacant'], s: { f: 'purpose', in: ['Purchase (rental)', 'Rate / term refinance', 'Cash-out refinance', 'Long-term rental (DSCR)'] } },
+    { id: 'str', l: 'Short-term rental (Airbnb-type)?', t: 'select', o: MSF_YN, s: { f: 'purpose', in: ['Purchase (rental)', 'Rate / term refinance', 'Cash-out refinance', 'Long-term rental (DSCR)'] } },
+    { id: 'hoa', l: 'HOA dues (monthly), if any', t: 'money' },
+    { id: 'term', l: 'Term needed', t: 'select', r: 1, o: ['6–12 months', '12–24 months', '30-year', 'Other / not sure'] },
+    { id: 'interestOnly', l: 'Interest-only payments preferred?', t: 'select', o: ['Yes', 'No', 'Not sure'] },
+    { id: 'prepay', l: 'Need prepayment flexibility?', t: 'select', o: ['Yes', 'No', 'Not sure'], s: { f: 'purpose', in: ['Purchase (rental)', 'Rate / term refinance', 'Cash-out refinance', 'Long-term rental (DSCR)'] } },
     { id: 'exit', l: 'Exit strategy', t: 'choice', r: 1, o: MSF_EXIT },
-    { id: 'exitDate', l: 'Expected exit date', t: 'month' },
-    { id: 'rentNow', l: 'Current monthly rent', t: 'money', s: { f: 'propType', in: ['2–4 family', 'Multifamily (5+)', 'Mixed-use / commercial', 'Single-family'] } },
-    { id: 'leased', l: 'Currently leased?', t: 'select', o: ['Fully leased', 'Partly leased', 'Vacant'], s: { f: 'propType', ne: 'Land' } },
     { id: 'timeline', l: 'When do you need to close?', t: 'select', r: 1, o: MSF_TIMELINE }
   ],
-  // ---------- multifamily / commercial ----------
-  mfProp: [
-    { id: 'purpose', l: 'Purchase or refinance?', t: 'choice', r: 1, o: ['Purchase', 'Refinance', 'Cash-out refinance'] },
-    { id: 'propAddress', l: 'Property address', t: 'text', r: 1, ac: 'off' },
-    { id: 'assetClass', l: 'Asset type', t: 'select', r: 1, o: ['Multifamily (5+ units)', 'Mixed-use', 'Retail', 'Office', 'Industrial', 'Other'] },
-    { id: 'units', l: 'Number of units', t: 'int', r: 1 },
-    { id: 'occupiedUnits', l: 'Units occupied today', t: 'int' },
-    { id: 'value', l: 'Purchase price or current value', t: 'money', r: 1 },
-    { id: 'existingDebt', l: 'Existing debt on the property', t: 'money', s: { f: 'purpose', ne: 'Purchase' } },
-    { id: 'loanAmt', l: 'Loan amount requested', t: 'money', r: 1 },
-    { id: 'cashOut', l: 'Cash-out requested', t: 'money', s: { f: 'purpose', eq: 'Cash-out refinance' } },
-    { id: 'capex', l: 'Capital improvements planned', t: 'money' },
-    { id: 'reno', l: 'Renovation budget, if any', t: 'money' },
-    { id: 'term', l: 'Loan term', t: 'select', o: ['Under 2 years (bridge)', '3–5 years', '5–10 years', '10+ years', 'Not sure'] },
-    { id: 'exit', l: 'Exit / long-term plan', t: 'choice', r: 1, o: MSF_EXIT },
-    { id: 'timeline', l: 'When do you need to close?', t: 'select', r: 1, o: MSF_TIMELINE }
+  // ---------- Calculate My Deal (all optional; defaults follow the original MSF Investment Calculator) ----------
+  calcRes: [
+    { id: 'cRate', l: 'Estimated interest rate', t: 'pct', ph: '7.00' },
+    { id: 'cYears', l: 'Loan term (years)', t: 'int', d: '30' },
+    { id: 'cTaxes', l: 'Property taxes (per year)', t: 'money' },
+    { id: 'cIns', l: 'Homeowners insurance (per year)', t: 'money' },
+    { id: 'cHoa', l: 'HOA / common charges (per month)', t: 'money' },
+    { id: 'cClosePct', l: 'Estimated closing costs (% of loan)', t: 'pct', d: '3' }
   ],
-  mfOps: [
-    { id: 'rents', l: 'Gross annual rental income', t: 'money', r: 1 },
-    { id: 'vacancyPct', l: 'Vacancy (%)', t: 'pct' },
-    { id: 'expenses', l: 'Annual operating expenses (excluding taxes and insurance)', t: 'money' },
-    { id: 'taxes', l: 'Annual property taxes', t: 'money' },
-    { id: 'insurance', l: 'Annual insurance', t: 'money' },
-    { id: 'debtService', l: 'Current annual mortgage payments', t: 'money', s: { f: 'purpose', ne: 'Purchase' } },
-    { id: 'newDebtService', l: 'Expected annual payments on the new loan (if known)', t: 'money' }
+  calcCom: [
+    { id: 'cRate', l: 'Estimated interest rate', t: 'pct', ph: '7.25' },
+    { id: 'cYears', l: 'Amortization (years)', t: 'int', d: '30' },
+    { id: 'cIO', l: 'Interest-only payments?', t: 'select', o: ['No', 'Yes'], d: 'No' },
+    { id: 'cBasis', l: 'Analyze on current or projected rent?', t: 'select', o: ['Current', 'Projected'], d: 'Current' },
+    { id: 'cMgmtPct', l: 'Management fee (% of effective gross income)', t: 'pct', d: '5' },
+    { id: 'cReserves', l: 'Replacement reserves per unit per year', t: 'money', d: '300' },
+    { id: 'cContPct', l: 'Renovation contingency', t: 'pct', d: '10' },
+    { id: 'cClosePct', l: 'Estimated closing costs (% of loan)', t: 'pct', d: '3' },
+    { id: 'cVacPct', l: 'Vacancy and credit-loss allowance', t: 'pct', d: '5' },
+    { id: 'cMaxLtv', l: 'Maximum loan-to-value (LTV)', t: 'pct', d: '75' },
+    { id: 'cMinDscr', l: 'Minimum DSCR', t: 'text', d: '1.25' },
+    { id: 'cMaxLtc', l: 'Maximum loan-to-cost (LTC)', t: 'pct', d: '80' }
+  ],
+  calcCon: [
+    { id: 'cRate', l: 'Estimated interest rate', t: 'pct', ph: '10.50' },
+    { id: 'cClosePct', l: 'Closing costs and points (% of loan)', t: 'pct', d: '3' },
+    { id: 'cDrawPct', l: 'Average balance drawn during the build', t: 'pct', d: '50', h: 'Interest is usually paid only on funds drawn; 50% is a common estimate' },
+    { id: 'cSellPct', l: 'Selling costs at exit (% of value)', t: 'pct', d: '6' }
+  ],
+  calcPvt: [
+    { id: 'cRate', l: 'Estimated interest rate', t: 'pct', ph: '10.00' },
+    { id: 'cYears', l: 'Amortization (years, rental loans)', t: 'int', d: '30' },
+    { id: 'cMonths', l: 'Holding period (months, flip / bridge)', t: 'int', d: '12' },
+    { id: 'cClosePct', l: 'Closing costs and points (% of loan)', t: 'pct', d: '3' },
+    { id: 'cCarry', l: 'Taxes, insurance, utilities (per month)', t: 'money' },
+    { id: 'cSellPct', l: 'Selling costs at exit (% of value)', t: 'pct', d: '6' },
+    { id: 'cTaxes', l: 'Property taxes (per year, rental)', t: 'money' },
+    { id: 'cIns', l: 'Insurance (per year, rental)', t: 'money' }
   ],
   // ---------- documents (categories) ----------
   docs: {
-    residential: [['income', 'Income — pay stubs, W-2s or tax returns'], ['bank', 'Bank statements (last 2 months)'], ['contract', 'Purchase contract'], ['mortgage', 'Current mortgage statement'], ['other', 'Anything else']],
-    construction: [['plans', 'Architectural plans'], ['budget', 'Budget / schedule of values'], ['survey', 'Survey'], ['plat', 'Plat / subdivision approval'], ['permits', 'Permits'], ['comps', 'Comparable sales'], ['basis', 'Closing statement and receipts (cost basis)'], ['entity', 'Entity formation documents'], ['oa', 'Operating agreement'], ['liquidity', 'Bank / brokerage statements'], ['track', 'Track record / experience sheet'], ['other', 'Anything else']],
-    private: [['contract', 'Purchase contract'], ['budget', 'Renovation budget / scope of work'], ['basis', 'Closing statement and receipts (cost basis)'], ['payoff', 'Mortgage statement / payoff letter'], ['leases', 'Leases / rent roll'], ['entity', 'Entity formation documents'], ['oa', 'Operating agreement'], ['liquidity', 'Bank / brokerage statements'], ['track', 'Track record / experience sheet'], ['other', 'Anything else']],
-    multifamily: [['rentroll', 'Rent roll'], ['t12', 'T-12 operating statement'], ['leases', 'Leases'], ['financials', 'Property financial statements / tax returns'], ['contract', 'Purchase agreement'], ['budget', 'Renovation budget and plans'], ['entity', 'Entity documents'], ['oa', 'Operating agreement'], ['liquidity', 'Bank / brokerage statements'], ['track', 'Track record / REO schedule'], ['other', 'Anything else']]
+    residential: [['id', 'Photo ID'], ['income', 'Income — pay stubs, W-2s or tax returns'], ['bank', 'Bank statements (last 2 months)'], ['contract', 'Purchase contract'], ['mortgage', 'Current mortgage statement'], ['other', 'Anything else']],
+    commercial: [['rentroll', 'Rent roll'], ['proforma', 'Pro forma / operating statement (income and expenses)'], ['closingstmt', 'Purchase closing statement'], ['basis', 'Cost basis breakdown'], ['mortgage', 'Current mortgage statement'], ['bio', 'Borrower bio / resume'], ['pfs', 'Personal financial statement'], ['reo', 'REO schedule'], ['taxreturns', 'Tax returns'], ['entity', 'Entity documents'], ['contract', 'Purchase contract'], ['budget', 'Construction / renovation budget and plans'], ['other', 'Anything else']],
+    construction: [['plans', 'Architectural plans'], ['budget', 'Budget / schedule of values'], ['survey', 'Survey'], ['plat', 'Site-plan / subdivision approval'], ['permits', 'Permits'], ['comps', 'Comparable sales'], ['basis', 'Closing statement and receipts (cost basis)'], ['entity', 'Entity documents'], ['liquidity', 'Bank / brokerage statements'], ['track', 'Track record / experience sheet'], ['other', 'Anything else']],
+    private: [['id', 'Photo ID'], ['contract', 'Purchase contract'], ['budget', 'Renovation budget / scope of work'], ['lease', 'Lease / rent roll'], ['appraisal', 'Appraisal (if available)'], ['payoff', 'Mortgage statement / payoff letter'], ['insurance', 'Insurance quote'], ['entity', 'Entity documents'], ['liquidity', 'Bank / brokerage statements'], ['track', 'Track record / experience sheet'], ['other', 'Anything else']]
   },
-  // ---------- final ----------
   notes: [{ id: 'notes', l: 'Anything else Simon should know?', t: 'textarea' }]
 };
 
@@ -370,59 +447,62 @@ var MSF_APPS = {
     screens: [
       { id: 'borrower', n: 'About you', fields: MSF_F.contact.concat(MSF_F.resBorrower) },
       { id: 'loan', n: 'Property and loan', fields: MSF_F.resLoan },
-      { id: 'fin', n: 'Income and assets', fields: MSF_F.resFin.concat(MSF_F.reo) },
+      { id: 'fin', n: 'Income, assets and declarations', fields: MSF_F.resFin.concat(MSF_F.reo, MSF_F.declarations) },
+      { id: 'calc', n: 'Calculate my payment', fields: MSF_F.calcRes },
       { id: 'docs', n: 'Documents and credit' },
       { id: 'review', n: 'Review and submit' }
     ] },
-  construction: { title: 'Construction Financing', short: 'Construction Financing', blurb: 'Ground-up construction, major renovation and additions.', minutes: 8,
+  commercial: { title: 'Commercial Loan ($1M–$70M)', short: 'Commercial', blurb: 'Multifamily, mixed-use, retail, office, industrial, hospitality, nursing homes and other commercial property.', minutes: 8,
+    screens: [
+      { id: 'borrower', n: 'Borrower and entity', fields: MSF_F.contact.concat(MSF_F.commRole, MSF_F.entity) },
+      { id: 'loan', n: 'Property and loan', fields: MSF_F.comLoan.concat(MSF_F.comDebt) },
+      { id: 'fin', n: 'Income, expenses and cost basis', fields: MSF_F.comOps.concat(MSF_F.comBasis) },
+      { id: 'project', n: 'Sponsor, PFS and REO', fields: MSF_F.sponsor.concat(MSF_F.reo, MSF_F.track) },
+      { id: 'calc', n: 'Calculate my deal', fields: MSF_F.calcCom },
+      { id: 'docs', n: 'Documents and credit' },
+      { id: 'review', n: 'Review and submit' }
+    ] },
+  construction: { title: 'Construction Financing', short: 'Construction Financing', blurb: 'Ground-up construction and development financing.', minutes: 8,
     screens: [
       { id: 'borrower', n: 'Borrower and entity', fields: MSF_F.contact.concat(MSF_F.entity) },
       { id: 'loan', n: 'Land and financing', fields: MSF_F.conProp },
-      { id: 'fin', n: 'Financial strength', fields: MSF_F.invFin.concat(MSF_F.reo) },
-      { id: 'project', n: 'Project, budget and team', fields: MSF_F.conProject.concat(MSF_F.track) },
+      { id: 'project', n: 'Project, budget and team', fields: MSF_F.conProject },
+      { id: 'fin', n: 'Financial strength and experience', fields: MSF_F.sponsor.concat(MSF_F.reo, MSF_F.track) },
+      { id: 'calc', n: 'Calculate my deal', fields: MSF_F.calcCon },
       { id: 'docs', n: 'Documents and credit' },
       { id: 'review', n: 'Review and submit' }
     ] },
-  private: { title: 'Private / Bridge Loan', short: 'Private / Bridge', blurb: 'Fix-and-flip, bridge, short-term and asset-based investor loans.', minutes: 7,
+  private: { title: 'Private / Fix & Flip', short: 'Private / Fix & Flip', blurb: 'Investor loans: purchase, refinance, bridge, fix-and-flip and rentals.', minutes: 7,
     screens: [
       { id: 'borrower', n: 'Borrower and entity', fields: MSF_F.contact.concat(MSF_F.entity) },
       { id: 'loan', n: 'Property and loan', fields: MSF_F.pvtProp },
-      { id: 'fin', n: 'Financial strength', fields: MSF_F.invFin.concat(MSF_F.reo) },
-      { id: 'project', n: 'Experience', fields: MSF_F.track },
-      { id: 'docs', n: 'Documents and credit' },
-      { id: 'review', n: 'Review and submit' }
-    ] },
-  multifamily: { title: 'Multifamily / Commercial', short: 'Multifamily / Commercial', blurb: 'Apartment buildings (5+ units), mixed-use and commercial property.', minutes: 8,
-    screens: [
-      { id: 'borrower', n: 'Borrower and entity', fields: MSF_F.contact.concat(MSF_F.entity) },
-      { id: 'loan', n: 'Property and loan', fields: MSF_F.mfProp },
-      { id: 'fin', n: 'Income, expenses and sponsor', fields: MSF_F.mfOps.concat(MSF_F.invFin, MSF_F.reo) },
-      { id: 'project', n: 'Experience', fields: MSF_F.track },
+      { id: 'fin', n: 'Financial strength and experience', fields: MSF_F.sponsor.concat(MSF_F.reo, MSF_F.track, MSF_F.declarations) },
+      { id: 'calc', n: 'Calculate my deal', fields: MSF_F.calcPvt },
       { id: 'docs', n: 'Documents and credit' },
       { id: 'review', n: 'Review and submit' }
     ] }
 };
 
-// Credit & consent (screen "docs" holds the optional credit part, "review" holds consents)
 var MSF_SENSITIVE = ['ssn', 'dob', 'coSsn', 'coDob'];
 var MSF_CONSENTS = {
   creditAuth: 'I authorize Simon Zarour / Alpine Mortgage Services LLC to review my credit information in connection with this request. Required only if I entered my Social Security number.',
   hardPull: 'Optional: I agree that a lender may later run a full (“hard”) credit inquiry — but only after Simon contacts me, names the specific lender, and I confirm. Submitting this application does not trigger any credit inquiry.',
   consent: 'I confirm this information is accurate to the best of my knowledge. I understand this is a preliminary application only — not a loan approval or a commitment to lend — and I agree to be contacted by Simon Zarour / Alpine Mortgage Services LLC by phone, text or email about my request.'
 };
+// Alpine-approved disclosure (as used in the Oct 15, 2026 My Source Finance client package)
+var MSF_DISCLOSURE = 'My Source Finance is a brand name used by Simon Zarour, NMLS #2684220; it is not a separately licensed company. Mortgage loans are arranged through Alpine Mortgage Services LLC, NMLS #56905, 210 Summit Avenue, Suite A3, Montvale, NJ 07645. Registered Mortgage Broker, NYS Department of Financial Services. Mortgage broker only, not a mortgage lender; all mortgage loans are arranged with third-party providers. Licensing can be verified at www.nmlsconsumeraccess.org. Equal Housing Opportunity.';
+var MSF_CALC_NOTE = 'All calculations and financing estimates are preliminary, subject to verification, lender underwriting, applicable licensing requirements, and final approval. They do not constitute a loan commitment, a financing offer or an investment guarantee.';
 
-function msfFields(app) { // flat list of all fields for an app (data fields only)
+function msfApp(k) { return MSF_APPS[k] ? k : (MSF_APP_ALIAS[k] && MSF_APPS[MSF_APP_ALIAS[k]] ? MSF_APP_ALIAS[k] : ''); }
+function msfFields(app) {
   var out = [], seen = {};
   MSF_APPS[app].screens.forEach(function (s) { (s.fields || []).forEach(function (f) { if (!seen[f.id]) { seen[f.id] = 1; out.push(f); } }); });
-  out = out.concat(MSF_F.notes);
-  return out;
+  return out.concat(MSF_F.notes);
 }
-function msfShown(f, d) {
-  var c = f.s; if (!c) return true;
-  return msfCond(c, d);
-}
+function msfShown(f, d) { return f.s ? msfCond(f.s, d) : true; }
 function msfCond(c, d) {
   if (c.all) { for (var i = 0; i < c.all.length; i++) if (!msfCond(c.all[i], d)) return false; return true; }
+  if (c.any) { for (var j = 0; j < c.any.length; j++) if (String(d[c.any[j]] || '') === c.eq) return true; return false; }
   var v = d[c.f] == null ? '' : String(d[c.f]);
   if ('eq' in c) return v === c.eq;
   if ('ne' in c) return v !== '' && v !== c.ne;
@@ -430,48 +510,134 @@ function msfCond(c, d) {
   if ('nz' in c) return Number(String(v).replace(/[^\d.]/g, '')) > 0;
   return true;
 }
-function msfNum(v) { var n = Number(String(v == null ? '' : v).replace(/[$,%\s]/g, '')); return isFinite(n) ? n : 0; }
-// Estimates — computed only when the inputs exist; always labelled as estimates.
+function msfNum(v) { var n = Number(String(v == null ? '' : v).replace(/[$,%x\s]/g, '')); return isFinite(n) ? n : 0; }
+function msfHas(v) { return v !== undefined && v !== null && String(v).trim() !== ''; }
+
+// Small estimates shown inside the form (PFS totals, budget totals)
 function msfCalc(app, d) {
   var o = {}, n = msfNum;
   var pfsA = n(d.pfsCash) + n(d.pfsBrokerage) + n(d.pfsRetire) + n(d.pfsRE) + n(d.pfsOther), pfsL = n(d.pfsMort) + n(d.pfsLiab);
   if (pfsA || pfsL) { o.totalAssets = pfsA; o.totalLiabilities = pfsL; o.netWorth = pfsA - pfsL; }
-  if (n(d.value) && n(d.loanAmt)) o.ltv = n(d.loanAmt) / n(d.value);
   if (app === 'construction') {
     var lines = n(d.hardCosts) + n(d.siteCosts) + n(d.softCosts) + n(d.contingency) + n(d.interestReserve);
     if (lines) o.budgetLines = lines;
-    if (n(d.hardCosts) && d.contingency !== undefined && d.contingency !== '') o.contingencyPct = n(d.contingency) / n(d.hardCosts);
-    var basis = n(d.landBasis) || n(d.landValue), tot = basis + n(d.budget);
-    if (n(d.loanAmt) && tot) o.ltc = n(d.loanAmt) / tot;
-    if (n(d.loanAmt) && n(d.arv)) o.ltarv = n(d.loanAmt) / n(d.arv);
-    delete o.ltv;
+    if (n(d.hardCosts) && msfHas(d.contingency)) o.contingencyPct = n(d.contingency) / n(d.hardCosts);
   }
-  if (app === 'private' && n(d.loanAmt) && n(d.arv)) o.ltarv = n(d.loanAmt) / n(d.arv);
-  if (app === 'multifamily' && n(d.rents)) {
-    var egi = n(d.rents) * (1 - Math.min(n(d.vacancyPct), 100) / 100);
-    if (d.expenses !== '' && d.expenses != null) {
-      o.noi = egi - n(d.expenses) - n(d.taxes) - n(d.insurance);
-      if (n(d.debtService)) o.dscrNow = o.noi / n(d.debtService);
-      if (n(d.newDebtService)) o.dscrNew = o.noi / n(d.newDebtService);
-    }
+  if (app === 'commercial') {
+    var b = n(d.basisPrice) + n(d.basisHard) + n(d.basisSoft) + n(d.basisClosing) + n(d.basisOther);
+    if (b) o.totalBasis = b;
+    var ru = n(d.resUnits) + n(d.comUnits);
+    if (ru) { o.totalUnits = ru; if (msfHas(d.occupiedUnits)) o.occupancy = Math.min(1, n(d.occupiedUnits) / ru); }
+    var opex = n(d.taxes) + n(d.insurance) + n(d.utilities) + n(d.repairs) + n(d.otherOpex);
+    if (opex) o.totalOpex = opex;
+    var reno = n(d.renoUnits) * n(d.renoPerUnit) + n(d.renoOther);
+    if (reno) o.totalReno = reno;
   }
   return o;
 }
-var MSF_CALC_LABELS = { totalAssets: ['Total assets', '$'], totalLiabilities: ['Total liabilities', '$'], netWorth: ['Net worth', '$'], ltv: ['Loan-to-value', '%'], budgetLines: ['Budget lines added up', '$'], contingencyPct: ['Contingency as % of hard costs', '%'], ltc: ['Loan-to-cost (basis + budget)', '%'], ltarv: ['Loan-to-ARV', '%'], noi: ['Net operating income (NOI)', '$'], dscrNow: ['DSCR — current debt', 'x'], dscrNew: ['DSCR — new loan', 'x'] };
-function msfFmtCalc(k, v) { var u = MSF_CALC_LABELS[k][1]; return u === '$' ? (v < 0 ? '−$' : '$') + Math.round(Math.abs(v)).toLocaleString('en-US') : u === '%' ? (v * 100).toFixed(1) + '%' : v.toFixed(2) + 'x'; }
+var MSF_CALC_LABELS = { totalAssets: ['Total assets', '$'], totalLiabilities: ['Total liabilities', '$'], netWorth: ['Net worth', '$'], budgetLines: ['Budget lines added up', '$'], contingencyPct: ['Contingency as % of hard costs', '%'], totalBasis: ['Total cost basis', '$'], totalUnits: ['Total units', '#'], occupancy: ['Occupancy', '%'], totalOpex: ['Total annual operating expenses', '$'], totalReno: ['Total estimated renovation', '$'] };
+function msfFmt(u, v) {
+  if (v === null || v === undefined || (typeof v === 'number' && !isFinite(v))) return '—';
+  if (typeof v === 'string') return v;
+  if (u === '$') return (v < 0 ? '−$' : '$') + Math.round(Math.abs(v)).toLocaleString('en-US');
+  if (u === '%') return (v * 100).toFixed(1) + '%';
+  if (u === 'x') return v.toFixed(2) + 'x';
+  if (u === 'mo') return Math.round(v) + ' months';
+  return Math.round(v).toLocaleString('en-US');
+}
+function msfFmtCalc(k, v) { return msfFmt(MSF_CALC_LABELS[k][1], v); }
 
-// Map answers from the 2026-10-19 (v1) application to v2 field ids.
+// ---------- Calculate My Deal — same formulas as the original "MSF — Investment Calculator" workbook ----------
+function msfPmt(rate, years, loan, io) {
+  if (loan <= 0) return 0;
+  if (io) return loan * rate / 12;
+  if (!rate) return years > 0 ? loan / (years * 12) : 0;
+  var r = rate / 12, n = years * 12; return loan * r / (1 - Math.pow(1 + r, -n));
+}
+function msfPv(rate, years, payment) { if (!rate) return payment * years * 12; var r = rate / 12, n = years * 12; return payment * (1 - Math.pow(1 + r, -n)) / r; }
+function msfDef(d, id, dflt) { return msfHas(d[id]) ? d[id] : dflt; }
+function msfDeal(app, d) {
+  var n = msfNum, P = function (id, dflt) { return n(msfDef(d, id, dflt)) / 100; };
+  var rate = P('cRate', ''), S = [], T = [];
+  function sec(title, rows) { rows = rows.filter(function (r) { return r[1] !== null && r[1] !== undefined && !(typeof r[1] === 'number' && !isFinite(r[1])); }); if (rows.length) S.push({ t: title, rows: rows }); }
+  if (app === 'commercial') {
+    // Inputs (sheet "Inputs") -> Analysis -> Dashboard
+    var price = n(d.value), asis = n(d.presentValue), resU = n(d.resUnits), comU = n(d.comUnits), units = resU + comU;
+    var projected = msfDef(d, 'cBasis', 'Current') === 'Projected';
+    var gross = (projected ? n(d.rentResPro) + n(d.rentComPro) : n(d.rentRes) + n(d.rentCom)) * 12;
+    var other = n(d.otherIncome) * 12, vac = -gross * P('cVacPct', 5), egi = gross + other + vac;
+    var fixed = n(d.taxes) + n(d.insurance) + n(d.utilities) + n(d.repairs) + n(d.otherOpex);
+    var mgmt = egi * P('cMgmtPct', 5), reserves = units * n(msfDef(d, 'cReserves', 300)), opex = fixed + mgmt + reserves, noi = egi - opex;
+    var ltvValue = price > 0 && asis > 0 ? Math.min(price, asis) : Math.max(price, asis);
+    var loan = n(d.loanAmt), years = n(msfDef(d, 'cYears', 30)), io = msfDef(d, 'cIO', 'No') === 'Yes';
+    var pmt = msfPmt(rate, years, loan, io), ds = pmt * 12, dscr = ds > 0 ? noi / ds : 0, ltv = ltvValue > 0 ? loan / ltvValue : 0;
+    var reno = (n(d.renoUnits) * n(d.renoPerUnit) + n(d.renoOther)) * (1 + P('cContPct', 10)), closing = loan * P('cClosePct', 3);
+    var cost = price + reno + closing, ltc = cost > 0 ? loan / cost : 0, need = Math.max(0, cost - loan), gap = Math.max(0, need - n(d.cashAvail));
+    var cf = noi - ds, coc = need > 0 ? cf / need : 0;
+    var minD = n(msfDef(d, 'cMinDscr', 1.25)), maxL = P('cMaxLtv', 75), maxC = P('cMaxLtc', 80);
+    var byLtv = ltvValue * maxL, byDscr = (minD <= 0 || noi <= 0 || rate <= 0) ? 0 : (io ? (noi / minD) / rate : msfPv(rate, years, noi / minD / 12)), byLtc = (price + reno) * maxC;
+    sec('Property performance', [['Gross rental income (' + (projected ? 'projected' : 'current') + ')', gross, '$'], ['Vacancy allowance', vac, '$'], ['Effective gross income', egi, '$'], ['Operating expenses (incl. management and reserves)', opex, '$'], ['Net operating income (NOI)', noi, '$'], ['Capitalization rate', price > 0 ? noi / price : null, '%']]);
+    if (loan > 0) {
+      sec('Estimated financing', [['Requested loan', loan, '$'], ['Interest rate', rate || null, '%'], ['Monthly payment', rate ? pmt : null, '$'], ['Annual debt service', rate ? ds : null, '$'], ['Loan-to-value (LTV)', ltvValue ? ltv : null, '%'], ['DSCR', rate && ds ? dscr : null, 'x']]);
+      sec('Cash required', [['Purchase price', price, '$'], ['Renovation (incl. contingency)', reno, '$'], ['Closing costs (estimate)', closing, '$'], ['Total project cost', cost, '$'], ['Total required investment', need, '$'], ['Cash available', msfHas(d.cashAvail) ? n(d.cashAvail) : null, '$'], ['Estimated financing gap', msfHas(d.cashAvail) ? gap : null, '$']]);
+      sec('Annual return', [['Annual cash flow', rate ? cf : null, '$'], ['Cash-on-cash return', rate && need ? coc : null, '%'], ['Loan-to-cost (LTC)', cost ? ltc : null, '%']]);
+      if (rate) {
+        T = [['DSCR vs. minimum', dscr >= minD ? 'Meets' : 'Below minimum'], ['LTV vs. maximum', ltv <= maxL ? 'Meets' : 'Above maximum'], ['LTC vs. maximum', ltc <= maxC ? 'Meets' : 'Above maximum'], ['Cash available vs. needed', msfHas(d.cashAvail) ? (gap <= 0 ? 'Covered' : 'Shortfall') : 'Enter cash available'], ['Cash flow after debt service', cf >= 0 ? 'Positive' : 'Negative']];
+        sec('Preliminary lending assessment', [['Indicative supportable loan (lowest of LTV, DSCR and LTC limits)', Math.max(0, Math.min(byLtv, byDscr, byLtc)), '$']]);
+      }
+    }
+  } else if (app === 'residential') {
+    var v = n(d.value), L = n(d.loanAmt), yrs = n(msfDef(d, 'cYears', 30)), pi = msfPmt(rate, yrs, L, false);
+    var escrow = n(d.cTaxes) / 12 + n(d.cIns) / 12 + n(d.cHoa), housing = pi + escrow, inc = (n(d.income) + n(d.coIncome)) / 12;
+    var down = d.purpose === 'Purchase' ? (msfHas(d.downPayment) ? n(d.downPayment) : Math.max(0, v - L)) : 0, cc = L * P('cClosePct', 3);
+    sec('Your estimated payment', [['Loan amount', L, '$'], ['Loan-to-value (LTV)', v ? L / v : null, '%'], ['Principal and interest (monthly)', rate ? pi : null, '$'], ['Taxes, insurance and HOA (monthly)', escrow || null, '$'], ['Total monthly housing payment', rate ? housing : null, '$']]);
+    sec('Cash and affordability', [['Down payment', d.purpose === 'Purchase' ? down : null, '$'], ['Closing costs (estimate)', L ? cc : null, '$'], ['Estimated cash to close', d.purpose === 'Purchase' ? down + cc : null, '$'], ['Debt-to-income (DTI)', rate && inc ? (housing + n(d.monthlyDebts)) / inc : null, '%']]);
+  } else if (app === 'construction') {
+    var basis = n(d.landBasis) || n(d.landValue), budget = n(d.budget), L2 = n(d.loanAmt), months = n(d.buildMonths) || 12;
+    var cc2 = L2 * P('cClosePct', 3), interest = n(d.interestReserve) ? 0 : L2 * rate * months / 12 * P('cDrawPct', 50);
+    var total = basis + budget + cc2 + interest, arv = n(d.arv), net = arv * (1 - P('cSellPct', 6)), profit = net - total, equity = Math.max(0, total - L2);
+    sec('Project cost', [['Land / cost basis', basis, '$'], ['Development budget', budget, '$'], ['Closing costs and points (estimate)', cc2, '$'], ['Carrying interest during the build (estimate)', interest || null, '$'], ['Total project cost', total, '$']]);
+    sec('Financing', [['Requested loan', L2, '$'], ['Loan-to-cost (LTC)', total ? L2 / total : null, '%'], ['Loan-to-completed-value', arv ? L2 / arv : null, '%'], ['Your equity required', equity, '$']]);
+    if (arv) sec('Projected exit', [['Estimated completed value', arv, '$'], ['Net after selling costs', net, '$'], ['Projected profit', profit, '$'], ['Return on project cost', total ? profit / total : null, '%'], ['Return on your equity', equity ? profit / equity : null, '%']]);
+  } else if (app === 'private') {
+    var flip = ['Fix and flip', 'Bridge'].indexOf(d.purpose) >= 0;
+    var v2 = n(d.value), L3 = n(d.loanAmt);
+    if (flip || n(d.rehab)) {
+      var mo = n(msfDef(d, 'cMonths', 12)), int2 = L3 * rate * mo / 12, cc3 = L3 * P('cClosePct', 3), carry = n(d.cCarry) * mo;
+      var tot = v2 + n(d.rehab) + cc3 + int2 + carry, arv2 = n(d.arv), net2 = arv2 * (1 - P('cSellPct', 6)), pr = net2 - tot, cash = Math.max(0, tot - L3);
+      sec('Total project cost', [['Purchase price / value', v2, '$'], ['Renovation', n(d.rehab) || null, '$'], ['Closing costs and points', cc3, '$'], ['Interest while holding (' + mo + ' months)', rate ? int2 : null, '$'], ['Taxes, insurance, utilities while holding', carry || null, '$'], ['Total project cost', tot, '$']]);
+      sec('Financing', [['Requested loan', L3, '$'], ['Loan-to-cost (LTC)', tot ? L3 / tot : null, '%'], ['Loan-to-ARV', arv2 ? L3 / arv2 : null, '%'], ['Cash required', cash, '$']]);
+      if (arv2) sec('Projected profit', [['After-repair value', arv2, '$'], ['Net after selling costs', net2, '$'], ['Projected profit', pr, '$'], ['Return on cash invested', cash ? pr / cash : null, '%']]);
+    }
+    if (!flip && n(d.rentNow)) {
+      var yrs3 = n(msfDef(d, 'cYears', 30)), io3 = d.interestOnly === 'Yes', pi3 = msfPmt(rate, yrs3, L3, io3);
+      var pitia = pi3 + n(d.cTaxes) / 12 + n(d.cIns) / 12 + n(d.hoa), dscr3 = pitia ? n(d.rentNow) / pitia : 0;
+      sec('Rental cash flow (DSCR)', [['Monthly rent', n(d.rentNow), '$'], ['Principal and interest' + (io3 ? ' (interest-only)' : ''), rate ? pi3 : null, '$'], ['Taxes, insurance and HOA (monthly)', (n(d.cTaxes) + n(d.cIns)) / 12 + n(d.hoa) || null, '$'], ['Total payment (PITIA)', rate ? pitia : null, '$'], ['DSCR (rent ÷ PITIA)', rate && pitia ? dscr3 : null, 'x'], ['Monthly cash flow', rate ? n(d.rentNow) - pitia : null, '$'], ['Loan-to-value (LTV)', v2 ? L3 / v2 : null, '%']]);
+    }
+  }
+  return { sections: S, tests: T, ready: S.length > 0 };
+}
+
+// Map answers from earlier versions of the forms to current field ids.
 function msfMigrate(app, d) {
   d = d || {}; var o = {}; Object.keys(d).forEach(function (k) { o[k] = d[k]; });
   if (o.propCity && !o.propAddress) o.propAddress = o.propCity;
   if (o.purpose === 'Refinance (lower rate / term)') o.purpose = 'Refinance';
   if (app === 'residential' && o.downOrBal) { if (o.purpose === 'Purchase') o.downPayment = o.downOrBal; else o.mortBalance = o.downOrBal; }
   if (o.borrowerType === 'An individual') o.borrowerType = 'Myself as an individual';
-  if (app === 'private' && o.exit === 'Sell') o.exit = 'Sell the property';
+  if (o.exit === 'Sell') o.exit = 'Sell the property';
   if (o.exit === 'Refinance to long-term loan') o.exit = 'Refinance into a long-term loan';
-  if (o.experience === '1–2' || o.experience === '3–5' || o.experience === '6+' || o.experience === 'None') { /* same */ }
-  if (o.term && MSF_TERM.indexOf(o.term) < 0 && app !== 'multifamily') o.term = 'Other / not sure';
-  delete o.propCity; delete o.downOrBal;
+  if (app === 'commercial') {
+    if (o.units && !o.resUnits) o.resUnits = o.units;
+    if (o.rents && !o.rentRes) o.rentRes = String(Math.round(msfNum(o.rents) / 12));
+    if (o.assetClass === 'Multifamily (5+ units)') o.assetClass = 'Multifamily';
+    if (o.reno && !o.renoOther) o.renoOther = o.reno;
+  }
+  if (app === 'private' && o.purpose === 'Purchase') o.purpose = 'Purchase (rental)';
+  if (app === 'private' && o.purpose === 'Refinance') o.purpose = 'Rate / term refinance';
+  if (o.timeline === '1–3 months') o.timeline = '30–60 days';
+  if (o.timeline === '3–6 months') o.timeline = '90+ days';
+  ['propCity', 'downOrBal', 'units', 'rents', 'reno', 'docs'].forEach(function (k) { delete o[k]; });
   return o;
 }
 
@@ -481,7 +647,7 @@ function msfMigrate(app, d) {
 'use strict';
 var API = 'https://script.google.com/macros/s/AKfycbw4j8lektvLFpWypcN13BrkKuTKhHl_Vqxyf3g5GDtMJkk_pzK_w7gfnOsUwHM1wSZ_Cw/exec';
 var PHONE = '(201) 484-9544';
-var FOOT = '<p>My Source Finance — personal brand of Simon Zarour, NMLS #2684220.<br>Loans arranged through Alpine Mortgage Services LLC, NMLS #56905.<br>Registered Mortgage Broker, NYS DFS. Broker, not lender.<br><a href="https://www.nmlsconsumeraccess.org" rel="noopener" target="_blank">nmlsconsumeraccess.org</a> · Equal Housing Opportunity.</p><p>Preliminary application only. Submission does not constitute loan approval or a commitment to lend.</p><p>Your answers travel over an encrypted connection. Social Security numbers and dates of birth are encrypted before storage, never emailed, and visible only to Simon Zarour. Questions: call or text ' + PHONE + '.</p>';
+var FOOT = '<p>' + MSF_DISCLOSURE.replace('www.nmlsconsumeraccess.org', '<a href="https://www.nmlsconsumeraccess.org" rel="noopener" target="_blank">www.nmlsconsumeraccess.org</a>') + '</p><p>Preliminary application only. Submission does not constitute loan approval or a commitment to lend. ' + MSF_CALC_NOTE + '</p><p>Your answers travel over an encrypted connection. Social Security numbers and dates of birth are encrypted before storage, never emailed, and visible only to Simon Zarour. Questions: call or text ' + PHONE + '.</p>';
 var LOCK = '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="#8fd3a8" stroke-width="1.8" d="M6 10V8a6 6 0 0 1 12 0v2M5 10h14v11H5z"/><circle cx="12" cy="15.5" r="1.6" fill="#8fd3a8"/></svg>';
 
 var $ = function (s, r) { return (r || document).querySelector(s); };
@@ -492,7 +658,7 @@ function money(v) { var n = String(v || '').replace(/[^\d.]/g, ''); if (!n) retu
 function kb(n) { n = Number(n || 0); return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
 
 var q = new URLSearchParams(location.search);
-var APP = MSF_APPS[q.get('app')] ? q.get('app') : '';
+var APP = msfApp(q.get('app') || '');
 var RESUME = /^[a-f0-9]{64}$/.test(q.get('resume') || '') ? q.get('resume') : '';
 if (RESUME) history.replaceState(null, '', location.pathname + '?app=' + APP);
 var S = { screen: -1, data: {}, token: '', ups: [], ssnSaved: '', dobSaved: false, stamp: '', submitted: false, saving: false, pending: false, timer: 0 };
@@ -588,8 +754,9 @@ function wrapField(f, inner, extra) {
 }
 function lbl(f, forId) { return '<label class="l" for="' + forId + '">' + esc(f.l) + (f.r ? '' : ' <span class="opt">(optional)</span>') + '</label>' + (f.h ? '<div class="h" id="h_' + forId + '">' + esc(f.h) + '</div>' : ''); }
 function inputHtml(f, name, val, id) {
+  if (f.d && !f.ph) f = Object.assign({}, f, { ph: f.d + ' (standard)' });
   var t = f.t, a = ' id="' + id + '" name="' + name + '"' + (f.h ? ' aria-describedby="h_' + id + '"' : '');
-  if (t === 'select') return '<select' + a + (f.ac ? ' autocomplete="' + f.ac + '"' : '') + '><option value="">Select…</option>' + f.o.map(function (o) { return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+  if (t === 'select') return '<select' + a + (f.ac ? ' autocomplete="' + f.ac + '"' : '') + '><option value="">' + (f.d ? esc(f.d) + ' (standard)' : 'Select…') + '</option>' + f.o.map(function (o) { return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
   if (t === 'textarea') return '<textarea' + a + ' maxlength="4000">' + esc(val) + '</textarea>';
   if (t === 'money') return '<div class="in money"><input type="text" inputmode="decimal" autocomplete="off"' + a + ' value="' + esc(money(val)) + '"></div>';
   if (t === 'pct') return '<div class="in pct"><input type="text" inputmode="decimal" autocomplete="off"' + a + ' value="' + esc(val) + '"></div>';
@@ -628,7 +795,7 @@ function tableHtml(f) {
   h += (rows.length < (f.max || 10) ? '<button type="button" class="add" data-add="' + f.id + '">+ Add ' + (rows.length ? 'another' : 'an entry') + '</button>' : '') + '</div><div class="msg" id="m_' + f.id + '"></div></div>';
   return h;
 }
-var GROUPS = { pfs: ['Personal financial statement', 'Optional, but lenders ask for it. Round numbers are fine.'], bud: ['Development budget', 'Line items lenders review first.'] };
+var GROUPS = { pfs: ['Personal financial statement', 'Optional, but lenders ask for it. Round numbers are fine.'], bud: ['Development budget', 'Line items lenders review first.'], basis: ['Cost basis', 'What you have invested so far — lenders size refinances and cash-out on this.'], ops: ['Rent and operating expenses', 'Monthly rents, yearly expenses. Round numbers are fine.'], reno: ['Renovation plan', 'Leave blank if no renovation is planned.'] };
 function fieldsHtml(fields) {
   var h = '', i = 0;
   while (i < fields.length) {
@@ -636,15 +803,25 @@ function fieldsHtml(fields) {
     if (f.g) {
       var g = f.g, list = [];
       while (i < fields.length && fields[i].g === g) list.push(fields[i++]);
-      var later = g === 'pfs' && S.data.later_pfs;
+      var later = S.data['later_' + g];
       h += '<div class="grp" id="g_' + g + '"><h3>' + GROUPS[g][0] + '</h3><div class="h" style="margin:6px 0 0">' + GROUPS[g][1] + '</div>' +
-        (g === 'pfs' ? '<label class="c later"><input type="checkbox" name="later_pfs"' + (later ? ' checked' : '') + '><span>Add these details later</span></label>' : '') +
+        (g === 'pfs' || g === 'basis' ? '<label class="c later"><input type="checkbox" name="later_' + g + '"' + (later ? ' checked' : '') + '><span>Add these details later</span></label>' : '') +
         '<div class="gb"' + (later ? ' hidden' : '') + '>' + list.map(fieldHtml).join('') + '</div><div class="calc" id="calc_' + g + '" hidden></div></div>';
       continue;
     }
     h += fieldHtml(f); i++;
   }
   return h;
+}
+function dealHtml() {
+  var r = msfDeal(APP, S.data);
+  if (!r.ready) return '<p class="h" style="margin:0">Enter an interest rate below to see your estimate.</p>';
+  return r.sections.map(function (sec) { return '<h4>' + esc(sec.t) + '</h4>' + sec.rows.map(function (row) { return '<div><span>' + esc(row[0]) + '</span><b>' + esc(msfFmt(row[2], row[1])) + '</b></div>'; }).join(''); }).join('') +
+    (r.tests.length ? '<h4>Preliminary lending assessment</h4>' + r.tests.map(function (t) { return '<div><span>' + esc(t[0]) + '</span><b class="' + (/Meets|Covered|Positive/.test(t[1]) ? 'okv' : 'badv') + '">' + esc(t[1]) + '</b></div>'; }).join('') : '') +
+    '<small>' + esc(MSF_CALC_NOTE) + '</small>';
+}
+function calcHtml(fields) {
+  return '<div class="deal" id="deal" aria-live="polite">' + dealHtml() + '</div><div class="assume"><h3 style="font:600 22px/1.2 var(--serif);color:var(--gold2);margin:24px 0 0">Rate and assumptions</h3>' + fieldsHtml(fields) + '</div>';
 }
 function docsHtml() {
   var cats = MSF_F.docs[APP];
@@ -664,7 +841,7 @@ function docsHtml() {
   return h;
 }
 function reviewHtml() {
-  var h = '<div class="rv">', calc = msfCalc(APP, S.data);
+  var h = '<div class="rv">', calc = msfCalc(APP, S.data), deal = msfDeal(APP, S.data);
   screens().forEach(function (s, si) {
     if (!s.fields && s.id !== 'docs') return;
     var items = '';
@@ -679,6 +856,7 @@ function reviewHtml() {
   });
   h += '</div>';
   var ks = Object.keys(calc);
+  if (deal.ready) h += '<div class="deal">' + dealHtml() + '</div>';
   if (ks.length) h += '<div class="calc"><div><span>Calculated from your figures</span></div>' + ks.map(function (k) { return '<div><span>' + esc(MSF_CALC_LABELS[k][0]) + '</span><b>' + esc(msfFmtCalc(k, calc[k])) + '</b></div>'; }).join('') + '<small>Estimates only. Lenders make their own calculations.</small></div>';
   if (S.data.notes !== undefined || true) h += fieldHtml(MSF_F.notes[0]);
   h += '<div class="cons"><div class="f" id="w_consent" style="margin:0"><label class="c"><input type="checkbox" name="consent"' + (S.data.consent ? ' checked' : '') + '><span>' + esc(MSF_CONSENTS.consent) + '</span></label><div class="msg" id="m_consent"></div></div>' +
@@ -687,8 +865,8 @@ function reviewHtml() {
 }
 function go(i, notice) {
   S.screen = i; var sc = screens(), s = sc[i], last = i === sc.length - 1;
-  var body = s.id === 'docs' ? docsHtml() : s.id === 'review' ? reviewHtml() : fieldsHtml(s.fields);
-  var intro = { borrower: 'Tell us who is applying and how to reach you.', loan: 'The basics a lender looks at first.', fin: 'Approximate figures are fine at this stage.', project: 'The details that decide pricing and leverage. Use “Add these details later” for anything you don’t have handy.', docs: 'Upload what you have now — everything else can follow.', review: 'Check your answers, then submit securely.' }[s.id];
+  var body = s.id === 'docs' ? docsHtml() : s.id === 'review' ? reviewHtml() : s.id === 'calc' ? calcHtml(s.fields) : fieldsHtml(s.fields);
+  var intro = { borrower: 'Tell us who is applying and how to reach you.', loan: 'The basics a lender looks at first.', fin: 'Approximate figures are fine at this stage.', project: 'The details that decide pricing and leverage. Use “Add these details later” for anything you don’t have handy.', docs: 'Upload what you have now — everything else can follow.', calc: 'Optional. Your numbers update instantly as you type. Blank boxes use the standard assumption shown. Estimates only — not a financing offer.', review: 'Check your answers, then submit securely.' }[s.id];
   $('#app').innerHTML =
     '<header class="bar"><div class="wrap"><picture><source srcset="msf-mark-96.webp" type="image/webp"><img src="msf-mark-96.png" width="96" height="100" alt=""></picture><div class="nm">My Source Finance<small>' + esc(MSF_APPS[APP].title) + '</small></div><div class="sv" id="sv" role="status" aria-live="polite">' + (S.token ? 'Saved' : '') + '</div></div>' +
     '<div class="prog" role="progressbar" aria-label="Application progress" aria-valuemin="1" aria-valuemax="' + sc.length + '" aria-valuenow="' + (i + 1) + '"><i style="width:' + ((i + 1) / sc.length * 100) + '%"></i></div></header>' +
@@ -703,7 +881,7 @@ function go(i, notice) {
 
 // ---------- events ----------
 var DEPS = {};
-Object.keys(MSF_F).forEach(function (k) { if (Array.isArray(MSF_F[k])) MSF_F[k].forEach(function (f) { if (f.s) (f.s.all || [f.s]).forEach(function (c) { DEPS[c.f] = 1; }); }); });
+Object.keys(MSF_F).forEach(function (k) { if (Array.isArray(MSF_F[k])) MSF_F[k].forEach(function (f) { if (f.s) (f.s.all || [f.s]).forEach(function (c) { if (c.any) c.any.forEach(function (x) { DEPS[x] = 1; }); else DEPS[c.f] = 1; }); }); });
 function setVal(name, el) {
   var p = name.split('.');
   if (p.length === 3) { var arr = S.data[p[0]] || (S.data[p[0]] = []); var row = arr[+p[1]] || (arr[+p[1]] = {}); row[p[2]] = cleanInput(el); return; }
@@ -753,12 +931,16 @@ function redrawTable(id, focusRow) {
   if (focusRow != null) { var inp = $('#t_' + id + '_' + focusRow + '_' + f.cols[0].id); if (inp) inp.focus(); }
 }
 function calcBoxes(changed) {
+  var dl = $('#deal'); if (dl) dl.innerHTML = dealHtml();
   var c = msfCalc(APP, S.data), show = function (id, keys) {
     var box = $('#calc_' + id); if (!box) return; var ks = keys.filter(function (k) { return k in c; });
     box.hidden = !ks.length; box.innerHTML = ks.map(function (k) { return '<div><span>' + esc(MSF_CALC_LABELS[k][0]) + '</span><b>' + esc(msfFmtCalc(k, c[k])) + '</b></div>'; }).join('') + '<small>Estimate from your figures.</small>';
   };
   show('pfs', ['totalAssets', 'totalLiabilities', 'netWorth']);
   show('bud', ['budgetLines', 'contingencyPct']);
+  show('basis', ['totalBasis']);
+  show('ops', ['totalUnits', 'occupancy', 'totalOpex']);
+  show('reno', ['totalReno']);
   if (APP === 'construction' && c.budgetLines && !S.data.budgetManual && /^(hardCosts|siteCosts|softCosts|contingency|interestReserve)$/.test(changed || '')) {
     S.data.budget = String(c.budgetLines); var b = $('#i_budget'); if (b) b.value = money(c.budgetLines);
   }
