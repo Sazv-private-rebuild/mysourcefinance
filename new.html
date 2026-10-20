@@ -254,7 +254,7 @@ var MSF_F = {
     { id: 'creditRange', l: 'Estimated credit score', t: 'select', r: 1, o: MSF_CREDIT },
     { id: 'ownsOther', l: 'Do you own other real estate?', t: 'yesno', r: 1 }
   ],
-  // ---------- commercial $1M–$70M (Yoni's checklist + the Multifamily Loan Intake) ----------
+  // ---------- commercial $1M–$70M ----------
   comLoan: [
     { id: 'purpose', l: 'Loan purpose', t: 'select', r: 1, o: ['Purchase', 'Refinance', 'Cash-out refinance', 'Bridge loan', 'Construction', 'Acquisition / development', 'Working capital', 'Other'] },
     { id: 'propAddress', l: 'Property address', t: 'text', r: 1, ac: 'off' },
@@ -369,7 +369,7 @@ var MSF_F = {
     { id: 'gcInsurance', l: 'GC liability insurance', t: 'select', o: ['In place', 'In progress', 'No', 'Not sure'] },
     { id: 'sponsorRole', l: 'Your role on the project', t: 'select', r: 1, o: ['Owner / developer only', 'Owner and general contractor', 'Owner with a third-party GC and project manager'] }
   ],
-  // ---------- private / fix & flip (LendSure-style investor programs) ----------
+  // ---------- private / fix & flip investor programs ----------
   pvtProp: [
     { id: 'purpose', l: 'Loan type', t: 'choice', r: 1, o: ['Fix and flip', 'Bridge', 'Purchase (rental)', 'Rate / term refinance', 'Cash-out refinance', 'Long-term rental (DSCR)'] },
     { id: 'propAddress', l: 'Property address', t: 'text', r: 1, ac: 'off' },
