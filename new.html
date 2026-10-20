@@ -519,18 +519,21 @@ function keep() {
   ls('msf2d_' + APP, JSON.stringify({ t: Date.now(), d: d }));
 }
 function status(t) { var s = $('#sv'); if (s) s.textContent = t; }
+function flush(ok, e) { var w = S.waiters || []; S.waiters = []; w.forEach(function (f) { f(ok, e); }); }
 function save(cb) {
-  if (S.submitted) { if (cb) cb(true); return; }
-  if (S.saving) { S.pending = true; if (cb) setTimeout(function () { save(cb); }, 700); return; }
+  if (cb) (S.waiters = S.waiters || []).push(cb);
+  if (S.submitted) { flush(true); return; }
+  if (S.saving) { S.pending = true; return; }
   S.saving = true; S.pending = false; clearTimeout(S.timer); status('Saving…');
   var clear = S.clearSens || null;
   api('save2', { app: APP, token: S.token, data: S.data, hp: hp(), clear: clear }).then(function (r) {
     S.saving = false; S.clearSens = null;
     if (r && r.token) { S.token = r.token; ls('msf2_' + APP, r.token); S.ssnSaved = r.ssnSaved; S.dobSaved = r.dobSaved; }
-    status('Saved'); if (S.pending) save(); if (cb) cb(true);
+    if (S.pending) { save(); return; }
+    status('Saved'); flush(true);
   }).catch(function (e) {
-    S.saving = false; S.pending = true; status(navigator.onLine === false ? 'Offline — kept on this phone' : 'Not saved yet — retrying');
-    clearTimeout(S.timer); S.timer = setTimeout(save, 10000); if (cb) cb(false, e);
+    S.saving = false; S.pending = false; status(navigator.onLine === false ? 'Offline — kept on this phone' : 'Not saved yet — retrying');
+    clearTimeout(S.timer); S.timer = setTimeout(save, 10000); flush(false, e);
   });
 }
 function soon() { keep(); status('Saving…'); clearTimeout(S.timer); S.timer = setTimeout(save, 1400); }
