@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html><head><title>My Source Finance — Client Applications</title><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#14202e;--muted:#5d6b7a;--line:#d8dee6;--bg:#f4f6f8;--card:#fff;--navy:#0d2238;--brass:#a8792a;--brass2:#c99a45;--ok:#1b7a4b;--err:#b3261e;--focus:#2563c9}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 "Source Sans 3",-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+header{background:var(--navy);color:#fff;padding:18px 16px 16px}
+.hw{max-width:760px;margin:0 auto}
+.brand{font-family:"Libre Baskerville",Georgia,serif;font-size:22px;letter-spacing:.02em;color:#f3e6c9}
+.brand small{display:block;font:600 12px/1.4 "Source Sans 3",sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#c9d3df;margin-top:4px}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+h1{font-family:"Libre Baskerville",Georgia,serif;font-size:24px;line-height:1.25;margin:4px 0 6px}
+.lead{color:var(--muted);margin:0 0 18px}
+.notice{background:#fff8e8;border:1px solid #ecd9a8;border-radius:10px;padding:12px 14px;font-size:15px;margin:0 0 18px}
+.cards{display:grid;gap:12px}
+a.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;text-decoration:none;color:inherit}
+a.card b{display:block;font-size:19px;color:var(--navy)}a.card span{color:var(--muted);font-size:15px}
+a.card:active,a.card:hover{border-color:var(--brass2)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 16px}
+.steps{display:flex;gap:6px;margin:0 0 14px}.steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}.steps i.on{background:var(--brass)}
+.stepname{font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:var(--brass);font-weight:700;margin:0 0 2px}
+h2{font-size:21px;margin:0 0 12px}
+.f{margin:0 0 16px}.f label.l{display:block;font-weight:600;margin:0 0 6px}.f label.l em{color:var(--err);font-style:normal}
+.f .help{font-size:14px;color:var(--muted);margin:-2px 0 6px}
+input[type=text],input[type=tel],input[type=email],input[type=date],input[inputmode],textarea{width:100%;font:inherit;font-size:17px;padding:12px;border:1px solid #b9c3cf;border-radius:9px;background:#fff;color:var(--ink)}
+textarea{min-height:96px}
+input:focus,textarea:focus,button:focus-visible,.opt input:focus-visible+span{outline:3px solid rgba(37,99,201,.35);outline-offset:1px;border-color:var(--focus)}
+.opts{display:grid;gap:8px}.opt{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:9px;padding:11px 12px;cursor:pointer;background:#fff}
+.opt input{width:20px;height:20px;accent-color:var(--navy);margin:0;flex:none}
+.opt:has(input:checked){border-color:var(--navy);background:#eef3f9}
+.bad input,.bad textarea,.bad .opt{border-color:var(--err)}.msg{color:var(--err);font-size:14px;margin-top:5px}
+.row{display:flex;gap:10px;justify-content:space-between;margin-top:18px;flex-wrap:wrap}
+button{font:inherit;font-weight:700;font-size:17px;border-radius:10px;padding:13px 20px;border:0;cursor:pointer;min-height:48px}
+.pri{background:var(--navy);color:#fff;flex:1}.sec{background:#e7ecf2;color:var(--navy)}
+button[disabled]{opacity:.6}
+.save{font-size:14px;color:var(--muted);margin-top:12px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.save a,.linkbtn{color:var(--navy);font-weight:600;background:none;padding:0;min-height:0;font-size:14px;text-decoration:underline}
+.lock{display:flex;gap:10px;background:#eef6f1;border:1px solid #cfe5d8;border-radius:10px;padding:12px;font-size:15px;margin:0 0 16px}
+.review dt{font-size:14px;color:var(--muted)}.review dd{margin:0 0 10px;font-weight:600;word-break:break-word}
+.alert{background:#fdecea;border:1px solid #f3c2bd;color:#7d1a14;border-radius:10px;padding:12px 14px;margin:0 0 14px}
+.done{text-align:center;padding:28px 12px}.done .ref{font:700 20px "Source Sans 3";letter-spacing:.04em;background:#f2efe6;border-radius:8px;display:inline-block;padding:6px 12px;margin:8px 0}
+footer{max-width:760px;margin:0 auto;padding:0 16px 40px;font-size:13px;color:var(--muted)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.resumebox{display:none;margin-top:10px;font-size:14px}.resumebox input{font-size:15px;padding:9px}
+</style></head>
+<body>
+<header><div class="hw"><div class="brand">My Source Finance<small>Simon Zarour · NMLS #2684220 · Alpine Mortgage Services LLC · NMLS #56905</small></div></div></header>
+<main id="main"></main>
+<footer id="foot"></footer>
+<script>
+var API = 'https://script.google.com/macros/s/AKfycbw4j8lektvLFpWypcN13BrkKuTKhHl_Vqxyf3g5GDtMJkk_pzK_w7gfnOsUwHM1wSZ_Cw/exec';
+var google = { script: { run: new Proxy({}, { get: function (t, first) {
+  var s = function () {}, f = function () {};
+  var call = function (fn, arg) {
+    fetch(API, { method: 'POST', body: JSON.stringify({ fn: fn, arg: arg }), credentials: 'omit', redirect: 'follow' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { j.ok ? s(j.result) : f(new Error(j.error)); })
+      .catch(function () { f(new Error('Connection problem. Please check your internet connection and try again.')); });
+  };
+  var o = new Proxy({}, { get: function (t2, k) {
+    if (k === 'withSuccessHandler') return function (x) { s = x; return o; };
+    if (k === 'withFailureHandler') return function (x) { f = x; return o; };
+    return function (arg) { call(k, arg); };
+  } });
+  return o[first];
+} }) } };
+</script>
+<script>
+var CFG = {"apps":{"residential":{"title":"Residential Mortgage Application","short":"Residential Mortgage","blurb":"Purchase, refinance, cash-out or home equity for a home or 1–4 family property.","fields":[["purpose","Loan purpose","choice",true,["Purchase","Refinance (lower rate / term)","Cash-out refinance","Home equity / second mortgage"]],["propCity","Property city and state","text",true],["propType","Property type","choice",true,["Single-family","Condo / co-op","2–4 family","Townhouse","Other"]],["occupancy","How will the property be used?","choice",true,["Primary residence","Second home","Investment / rental"]],["value","Purchase price or estimated value ($)","money",true],["loanAmt","Loan amount requested ($)","money",true],["downOrBal","Down payment or current mortgage balance ($)","money",false],["employment","Employment","choice",false,["W-2 employee","Self-employed / business owner","Retired","Other"]],["income","Approximate annual household income ($)","money",false]]},"construction":{"title":"Construction Financing Application","short":"Construction Financing","blurb":"Ground-up new construction, major renovation or additions.","fields":[["propCity","Project city and state","text",true],["projType","Project type","choice",true,["New single-family home","New multifamily","Major renovation / addition","Other"]],["landOwned","Do you already own the land?","choice",true,["Yes — owned free and clear","Yes — with a mortgage","No — purchasing it"]],["landValue","Land value or purchase price ($)","money",true],["budget","Construction budget ($)","money",true],["arv","Estimated value when completed ($)","money",false],["loanAmt","Loan amount requested ($)","money",true],["cashOut","Cash-out requested at closing, if any ($)","money",false],["permits","Plans and permits","choice",true,["Permits issued","Plans done, permits pending","Plans in progress","Not started"]],["gc","Licensed general contractor (name), if selected","text",false],["experience","Ground-up projects completed in the last 3 years","choice",true,["None","1–2","3–5","6+"]]]},"private":{"title":"Private / Hard-Money Loan Application","short":"Private / Hard-Money","blurb":"Fix-and-flip, bridge, short-term and asset-based investor loans.","fields":[["purpose","Loan purpose","choice",true,["Purchase","Fix and flip","Bridge / short-term","Refinance","Cash-out"]],["propCity","Property city and state","text",true],["propType","Property type","choice",true,["Single-family","2–4 family","Multifamily (5+)","Mixed-use / commercial","Land","Other"]],["value","Purchase price or current value ($)","money",true],["rehab","Rehab / construction budget ($)","money",false],["arv","Estimated after-repair value ($)","money",false],["loanAmt","Loan amount requested ($)","money",true],["term","Term needed","choice",true,["6 months","12 months","18 months","24 months","Other"]],["exit","Exit strategy","choice",true,["Sell","Refinance to long-term loan","Other"]],["experience","Similar projects completed in the last 3 years","choice",true,["None","1–2","3–5","6+"]]]},"multifamily":{"title":"Multifamily Financing Application","short":"Multifamily","blurb":"Purchase or refinance of 5+ unit apartment buildings and mixed-use.","fields":[["propCity","Property city and state","text",true],["units","Number of units","int",true],["purpose","Purchase or refinance?","choice",true,["Purchase","Refinance","Cash-out refinance"]],["value","Purchase price or current value ($)","money",true],["rents","Gross annual rents ($)","money",true],["expenses","Annual operating expenses ($)","money",false],["occupancyPct","Current occupancy (%)","int",false],["reno","Renovation budget, if any ($)","money",false],["loanAmt","Loan amount requested ($)","money",true],["docs","Rent roll and 2 years of operating statements available?","choice",false,["Yes","Some","No"]]]}},"contact":[["fullName","Full name","text",true],["phone","Mobile phone","tel",true],["email","Email","email",true],["contactPref","Best way to reach you","choice",true,["Phone call","Text message","Email","WhatsApp"]],["borrowerType","Borrowing as","choice",false,["An individual","An LLC / corporation","Not sure yet"]],["entityName","LLC / corporation name (if any)","text",false]],"fin":[["creditRange","Estimated credit score range","choice",false,["760+","720–759","680–719","640–679","Below 640","Not sure"]],["timeline","When do you need financing?","choice",true,["Within 30 days","1–3 months","3–6 months","Just exploring"]],["notes","Anything else we should know?","textarea",false]],"brand":{"name":"My Source Finance","lo":"Simon Zarour · Mortgage Loan Originator · NMLS #2684220","co":"Operating under Alpine Mortgage Services LLC · NMLS #56905","addr":"210 Summit Avenue, Suite A3, Montvale, NJ 07645","office":"(201) 488-8809","cell":"(201) 484-9544","disclosure":"My Source Finance is a brand name used by Simon Zarour, NMLS #2684220; it is not a separately licensed company. Mortgage loans are arranged through Alpine Mortgage Services LLC, NMLS #56905. Registered Mortgage Broker, NYS Department of Financial Services. Mortgage broker only, not a mortgage lender; all mortgage loans are arranged with third-party providers. Licensing can be verified at www.nmlsconsumeraccess.org. Equal Housing Opportunity. This is a preliminary application only — not a loan approval or commitment."},"base":"./"}, Q = new URLSearchParams(location.search), APP = CFG.apps[Q.get('app')] ? Q.get('app') : '', RESUME = /^[a-f0-9]{64}$/.test(Q.get('resume') || '') ? Q.get('resume') : '', STAMP = '';
+if (RESUME) history.replaceState(null, '', location.pathname + '?app=' + APP);
+google.script.run.withSuccessHandler(function (s) { STAMP = s; }).stamp();
+if (APP) document.title = 'My Source Finance — ' + CFG.apps[APP].title;
+var B = CFG.brand, $ = function (s) { return document.querySelector(s); };
+var state = { step: 0, data: {}, token: '', saving: false, dirty: false };
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+function lsSet(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} }
+$('#foot').innerHTML = '<p>' + esc(B.disclosure) + '</p><p>' + esc(B.addr) + ' · Office ' + esc(B.office) + ' · Cell ' + esc(B.cell) + '</p><p>Your information is sent over an encrypted connection. Social Security numbers and dates of birth are encrypted before storage, are never emailed, and are only visible to Simon Zarour.</p>';
+
+function landing() {
+  var h = '<h1>Client Applications</h1><p class="lead">Choose the financing you need. Each application takes about 5–10 minutes and saves your progress automatically.</p><div class="cards">';
+  Object.keys(CFG.apps).forEach(function (k) { var a = CFG.apps[k]; h += '<a class="card" href="' + CFG.base + '?app=' + k + '"><b>' + esc(a.title) + '</b><span>' + esc(a.blurb) + '</span></a>'; });
+  h += '</div><p class="lead" style="margin-top:18px">Questions? Call or text Simon at ' + esc(B.cell) + '.</p>';
+  $('#main').innerHTML = h;
+}
+
+var STEPS;
+function buildSteps() {
+  var a = CFG.apps[APP];
+  STEPS = [
+    { name: 'Your contact information', fields: CFG.contact },
+    { name: 'About the ' + (APP === 'construction' ? 'project' : APP === 'multifamily' ? 'property' : 'loan'), fields: a.fields },
+    { name: 'Credit details (optional)', id: 'sens' },
+    { name: 'Final details', fields: CFG.fin },
+    { name: 'Review and submit', id: 'review' }
+  ];
+}
+function fieldHtml(f) {
+  var id = f[0], v = state.data[id] || '', req = f[3] ? ' <em>*</em>' : '', h = '<div class="f" id="w_' + id + '"><label class="l" for="i_' + id + '">' + esc(f[1]) + req + '</label>';
+  if (f[2] === 'choice') {
+    h = '<div class="f" id="w_' + id + '" role="radiogroup" aria-label="' + esc(f[1]) + '"><label class="l">' + esc(f[1]) + req + '</label><div class="opts">';
+    f[4].forEach(function (o, i) { h += '<label class="opt"><input type="radio" name="' + id + '" value="' + esc(o) + '"' + (v === o ? ' checked' : '') + '><span>' + esc(o) + '</span></label>'; });
+    h += '</div>';
+  } else if (f[2] === 'textarea') h += '<textarea id="i_' + id + '" name="' + id + '">' + esc(v) + '</textarea>';
+  else {
+    var t = f[2] === 'tel' ? 'tel' : f[2] === 'email' ? 'email' : 'text', im = (f[2] === 'money' || f[2] === 'int') ? ' inputmode="numeric"' : '';
+    var ac = { fullName: 'name', phone: 'tel', email: 'email' }[id]; ac = ac ? ' autocomplete="' + ac + '"' : '';
+    h += (f[2] === 'money' ? '<div class="help">Numbers only — no $ or commas needed</div>' : '') + '<input type="' + t + '" id="i_' + id + '" name="' + id + '" value="' + esc(v) + '"' + im + ac + '>';
+  }
+  return h + '<div class="msg" id="m_' + id + '"></div></div>';
+}
+function sensHtml() {
+  return '<div class="lock"><span aria-hidden="true">🔒</span><div><b>Optional.</b> You can leave this page blank and continue — Simon can collect it later by phone. If you enter it, it is encrypted before it is stored, never emailed, and only Simon can view it. No credit report is pulled until Simon speaks with you.</div></div>' +
+    '<div class="f" id="w_ssn"><label class="l" for="i_ssn">Social Security number</label><input type="text" id="i_ssn" name="ssn" inputmode="numeric" autocomplete="off" maxlength="11" placeholder="123-45-6789" value="' + esc(state.data.ssn || '') + '">' + (state.ssnSaved ? '<div class="help" style="margin-top:6px">Already saved securely (ends in ' + esc(state.ssnSaved) + '). Leave blank to keep it.</div>' : '') + '<div class="msg" id="m_ssn"></div></div>' +
+    '<div class="f" id="w_dob"><label class="l" for="i_dob">Date of birth</label><input type="date" id="i_dob" name="dob" autocomplete="off" value="' + esc(state.data.dob || '') + '"><div class="msg" id="m_dob"></div></div>' +
+    '<div class="f" id="w_creditAuth"><label class="opt"><input type="checkbox" name="creditAuth"' + (state.data.creditAuth ? ' checked' : '') + '><span>If I entered my SSN, I authorize My Source Finance / Alpine Mortgage Services LLC to obtain my credit report in connection with this request, after speaking with me.</span></label><div class="msg" id="m_creditAuth"></div></div>';
+}
+function reviewHtml() {
+  var all = CFG.contact.concat(CFG.apps[APP].fields, CFG.fin), h = '<dl class="review">';
+  all.forEach(function (f) { if (state.data[f[0]]) h += '<dt>' + esc(f[1]) + '</dt><dd>' + esc(state.data[f[0]]) + '</dd>'; });
+  h += '<dt>Social Security number</dt><dd>' + (state.data.ssn ? '•••-••-' + esc(String(state.data.ssn).replace(/\D/g, '').slice(-4)) : state.ssnSaved ? 'Saved securely (ends in ' + esc(state.ssnSaved) + ')' : 'Not provided') + '</dd></dl>';
+  h += '<div class="f" id="w_consent"><label class="opt"><input type="checkbox" name="consent"' + (state.data.consent ? ' checked' : '') + '><span>I confirm this information is accurate to the best of my knowledge. I understand this is a preliminary application, not a loan approval or commitment, and I agree to be contacted by My Source Finance / Alpine Mortgage Services LLC by phone, text or email about my request.</span></label><div class="msg" id="m_consent"></div></div>';
+  return h;
+}
+function render() {
+  var s = STEPS[state.step], a = CFG.apps[APP], bars = '';
+  for (var i = 0; i < STEPS.length; i++) bars += '<i class="' + (i <= state.step ? 'on' : '') + '"></i>';
+  var body = s.id === 'sens' ? sensHtml() : s.id === 'review' ? reviewHtml() : s.fields.map(fieldHtml).join('');
+  $('#main').innerHTML = '<h1>' + esc(a.title) + '</h1>' + (state.step === 0 ? '<p class="notice">Your answers save automatically as you go. Use <b>Email me a resume link</b> below to finish later on any device. Please don\'t include bank account numbers or passwords.</p>' : '') +
+    '<div class="panel"><div class="steps" aria-hidden="true">' + bars + '</div><p class="stepname">Step ' + (state.step + 1) + ' of ' + STEPS.length + '</p><h2>' + esc(s.name) + '</h2><div id="err"></div><form id="frm" novalidate>' + body +
+    '<div class="hp" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>' +
+    '<div class="row">' + (state.step ? '<button type="button" class="sec" id="back">Back</button>' : '<a class="sec" style="padding:13px 20px;border-radius:10px;text-decoration:none;font-weight:700" href="' + CFG.base + '">All applications</a>') +
+    '<button type="submit" class="pri" id="next">' + (s.id === 'review' ? 'Submit application' : 'Continue') + '</button></div></form>' +
+    '<div class="save" id="save"><span id="savestat">' + (state.token ? 'Progress saved' : 'Progress saves automatically') + '</span><button type="button" class="linkbtn" id="mailme">Email me a resume link</button></div>' +
+    '<div class="resumebox" id="rb"><label for="rbmail">Send the link to:</label> <input type="email" id="rbmail" value="' + esc(state.data.email || '') + '"> <button type="button" class="sec" style="padding:8px 14px;min-height:0;font-size:15px" id="rbsend">Send</button> <span id="rbstat"></span></div></div>';
+  var frm = $('#frm');
+  frm.addEventListener('input', onChange); frm.addEventListener('change', onChange);
+  frm.addEventListener('submit', function (e) { e.preventDefault(); next(); });
+  if ($('#back')) $('#back').onclick = function () { collect(); state.step--; render(); scrollTo(0, 0); };
+  $('#mailme').onclick = function () { $('#rb').style.display = 'block'; };
+  $('#rbsend').onclick = sendLink;
+  var ssn = $('#i_ssn'); if (ssn) ssn.addEventListener('input', function () { var d = ssn.value.replace(/\D/g, '').slice(0, 9); ssn.value = d.length > 5 ? d.slice(0, 3) + '-' + d.slice(3, 5) + '-' + d.slice(5) : d.length > 3 ? d.slice(0, 3) + '-' + d.slice(3) : d; });
+}
+function collect() {
+  var frm = $('#frm'); if (!frm) return;
+  Array.prototype.forEach.call(frm.elements, function (el) {
+    if (!el.name || el.name === 'website') return;
+    if (el.type === 'radio') { if (el.checked) state.data[el.name] = el.value; }
+    else if (el.type === 'checkbox') state.data[el.name] = el.checked ? 'yes' : '';
+    else state.data[el.name] = el.value.trim();
+  });
+}
+var tmr;
+function onChange() { collect(); state.dirty = true; clearTimeout(tmr); tmr = setTimeout(save, 1500); $('#savestat').textContent = 'Saving…'; }
+function save(cb) {
+  if (state.saving) { clearTimeout(tmr); tmr = setTimeout(save, 1000); return; }
+  state.saving = true; state.dirty = false;
+  google.script.run.withSuccessHandler(function (r) {
+    state.saving = false; if (r && r.token) { state.token = r.token; lsSet('msf_' + APP, r.token); }
+    var st = $('#savestat'); if (st) st.textContent = 'Progress saved ✓';
+    if (cb) cb();
+  }).withFailureHandler(function (e) { state.saving = false; var st = $('#savestat'); if (st) st.textContent = 'Not saved yet — check your connection. We\'ll retry.'; clearTimeout(tmr); tmr = setTimeout(save, 8000); if (cb) cb(); })
+    .saveDraft({ app: APP, token: state.token, data: state.data, hp: hpVal() });
+}
+function hpVal() { var h = document.querySelector('[name=website]'); return h ? h.value : ''; }
+function sendLink() {
+  var em = $('#rbmail').value.trim(), st = $('#rbstat'); st.textContent = 'Sending…';
+  save(function () {
+    google.script.run.withSuccessHandler(function () { st.textContent = 'Sent. Check your inbox.'; })
+      .withFailureHandler(function (e) { st.textContent = e.message || 'Could not send. Try again.'; })
+      .emailResumeLink({ app: APP, token: state.token, email: em });
+  });
+}
+function showErrs(list) {
+  document.querySelectorAll('.msg').forEach(function (m) { m.textContent = ''; }); document.querySelectorAll('.bad').forEach(function (m) { m.classList.remove('bad'); });
+  if (!list.length) { $('#err').innerHTML = ''; return; }
+  $('#err').innerHTML = '<div class="alert" role="alert">Please fix ' + (list.length === 1 ? 'this item' : 'these ' + list.length + ' items') + ':<br>' + list.map(function (e) { return esc(e[1]); }).join('<br>') + '</div>';
+  list.forEach(function (e) { var w = $('#w_' + e[0]); if (w) { w.classList.add('bad'); $('#m_' + e[0]).textContent = e[1]; } });
+  var first = $('#w_' + list[0][0]); (first || $('#err')).scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function validate(s) {
+  var errs = [], d = state.data;
+  if (s.fields) s.fields.forEach(function (f) {
+    var v = d[f[0]] || '';
+    if (f[3] && !v) errs.push([f[0], f[1] + ' is required']);
+    else if (v && f[2] === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) errs.push([f[0], 'Enter a valid email address']);
+    else if (v && f[2] === 'tel' && !/^[0-9()+ .\-]{7,20}$/.test(v)) errs.push([f[0], 'Enter a valid phone number']);
+    else if (v && f[2] === 'money' && !/^\$?[\d,]+(\.\d{1,2})?$/.test(v)) errs.push([f[0], 'Numbers only']);
+    else if (v && f[2] === 'int' && !/^\d+$/.test(v)) errs.push([f[0], 'Whole number only']);
+  });
+  if (s.id === 'sens') {
+    var ss = (d.ssn || '').replace(/\D/g, '');
+    if (ss && ss.length !== 9) errs.push(['ssn', 'Enter all 9 digits, or leave it blank']);
+    if ((ss || state.ssnSaved) && !d.creditAuth) errs.push(['creditAuth', 'Check this box if you enter your SSN — or clear the SSN field']);
+  }
+  if (s.id === 'review' && !d.consent) errs.push(['consent', 'Please check the box to submit']);
+  return errs;
+}
+function next() {
+  collect(); var s = STEPS[state.step], errs = validate(s); showErrs(errs); if (errs.length) return;
+  if (s.id !== 'review') { save(); state.step++; render(); scrollTo(0, 0); return; }
+  var btn = $('#next'); btn.disabled = true; btn.textContent = 'Submitting…';
+  google.script.run.withSuccessHandler(function (r) {
+    if (!r.ok) { btn.disabled = false; btn.textContent = 'Submit application'; showErrs((r.errors || []).map(function (m) { return ['', m]; })); return; }
+    lsSet('msf_' + APP, ''); var a = CFG.apps[APP];
+    $('#main').innerHTML = '<div class="panel done"><h1>Thank you — your application was received.</h1><p>Your reference number:</p><div class="ref">' + esc(r.ref) + '</div><p>Simon Zarour will contact you within one business day. Questions: call or text ' + esc(B.cell) + '.</p><p><a href="' + CFG.base + '">Back to all applications</a></p></div>';
+    scrollTo(0, 0);
+  }).withFailureHandler(function (e) {
+    btn.disabled = false; btn.textContent = 'Try again';
+    $('#err').innerHTML = '<div class="alert" role="alert">' + esc(e.message || 'Something went wrong.') + ' Your answers are still here and saved — please tap <b>Try again</b>. If it keeps failing, call or text ' + esc(B.cell) + '.</div>';
+  }).submitApp({ app: APP, token: state.token, data: state.data, stamp: STAMP, hp: hpVal() });
+}
+function start() {
+  if (!APP) return landing();
+  buildSteps();
+  var tok = RESUME || lsGet('msf_' + APP);
+  if (!tok) return render();
+  $('#main').innerHTML = '<p>Loading your saved application…</p>';
+  google.script.run.withSuccessHandler(function (r) {
+    if (r && r.ok && r.app === APP) { state.data = r.data; state.token = tok; state.ssnSaved = r.ssnSaved; state.dobSaved = r.dobSaved; lsSet('msf_' + APP, tok); }
+    render(); if (r && r.ok) $('#savestat').textContent = 'Welcome back — your saved answers are loaded';
+  }).withFailureHandler(function () { render(); }).loadDraft(tok);
+}
+window.addEventListener('beforeunload', function (e) { if (state.dirty || state.saving) { e.preventDefault(); e.returnValue = ''; } });
+start();
+</script>
+</body></html>
