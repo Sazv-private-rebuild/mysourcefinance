@@ -154,6 +154,7 @@ function collect() {
 var tmr;
 function onChange() { collect(); state.dirty = true; clearTimeout(tmr); tmr = setTimeout(save, 1500); $('#savestat').textContent = 'Saving…'; }
 function save(cb) {
+  if (state.submitted) { if (cb) cb(); return; }
   if (state.saving) { clearTimeout(tmr); tmr = setTimeout(save, 1000); return; }
   state.saving = true; state.dirty = false;
   google.script.run.withSuccessHandler(function (r) {
@@ -200,10 +201,11 @@ function validate(s) {
 function next() {
   collect(); var s = STEPS[state.step], errs = validate(s); showErrs(errs); if (errs.length) return;
   if (s.id !== 'review') { save(); state.step++; render(); scrollTo(0, 0); return; }
+  clearTimeout(tmr);
   var btn = $('#next'); btn.disabled = true; btn.textContent = 'Submitting…';
   google.script.run.withSuccessHandler(function (r) {
     if (!r.ok) { btn.disabled = false; btn.textContent = 'Submit application'; showErrs((r.errors || []).map(function (m) { return ['', m]; })); return; }
-    lsSet('msf_' + APP, ''); var a = CFG.apps[APP];
+    state.submitted = true; state.dirty = false; clearTimeout(tmr); lsSet('msf_' + APP, ''); var a = CFG.apps[APP];
     $('#main').innerHTML = '<div class="panel done"><h1>Thank you — your application was received.</h1><p>Your reference number:</p><div class="ref">' + esc(r.ref) + '</div><p>Simon Zarour will contact you within one business day. Questions: call or text ' + esc(B.cell) + '.</p><p><a href="' + CFG.base + '">Back to all applications</a></p></div>';
     scrollTo(0, 0);
   }).withFailureHandler(function (e) {
